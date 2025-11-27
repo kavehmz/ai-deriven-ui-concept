@@ -73,67 +73,61 @@ function App() {
           onReset={resetUI}
         />
 
-        <div className="flex flex-col lg:flex-row gap-4">
-          {/* Main Dashboard Area */}
-          <div className="flex-1">
-            <motion.div 
-              layout
-              className={`grid ${gridLayout} gap-4 auto-rows-auto`}
-              style={{ gridAutoFlow: 'dense' }}
-            >
-              <AnimatePresence mode="popLayout">
-                {uiState.visibleComponents.map((componentId) => {
-                  const Component = componentRegistry[componentId];
-                  if (!Component) return null;
+        {/* Main Dashboard Area */}
+        <motion.div 
+          layout
+          className={`grid ${gridLayout} gap-4 auto-rows-auto`}
+          style={{ gridAutoFlow: 'dense' }}
+        >
+          <AnimatePresence mode="popLayout">
+            {uiState.visibleComponents.map((componentId) => {
+              const Component = componentRegistry[componentId];
+              if (!Component) return null;
 
-                  // Chart spans 2 columns only when we have 3+ columns
-                  const isWideChart = componentId === 'chart' && uiState.visibleComponents.length >= 4;
+              // Chart spans 2 columns only when we have 3+ columns
+              const isWideChart = componentId === 'chart' && uiState.visibleComponents.length >= 4;
 
-                  return (
-                    <motion.div
-                      key={componentId}
-                      layout
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                      className={isWideChart ? 'xl:col-span-2' : ''}
-                    >
-                      <Component 
-                        language={uiState.language}
-                        primaryColor={uiState.primaryColor}
-                      />
-                    </motion.div>
-                  );
-                })}
-              </AnimatePresence>
-            </motion.div>
+              return (
+                <motion.div
+                  key={componentId}
+                  layout
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                  className={isWideChart ? 'xl:col-span-2' : ''}
+                >
+                  <Component 
+                    language={uiState.language}
+                    primaryColor={uiState.primaryColor}
+                  />
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </motion.div>
 
-            {/* Empty state */}
-            {uiState.visibleComponents.length === 0 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="glass rounded-2xl p-12 text-center"
-              >
-                <p className="text-gray-500 dark:text-gray-400">
-                  No components visible. Ask Amy to show some components!
-                </p>
-              </motion.div>
-            )}
-          </div>
+        {/* Empty state */}
+        {uiState.visibleComponents.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="glass rounded-2xl p-12 text-center"
+          >
+            <p className="text-gray-500 dark:text-gray-400">
+              No components visible. Ask Amy to show some components!
+            </p>
+          </motion.div>
+        )}
 
-          {/* Chat Panel */}
-          <div className="w-full lg:w-96 flex-shrink-0">
-            <ChatPanel
-              messages={messages}
-              isLoading={isLoading}
-              onSendMessage={sendMessage}
-              language={uiState.language}
-              primaryColor={uiState.primaryColor}
-            />
-          </div>
-        </div>
+        {/* Floating Chat Panel */}
+        <ChatPanel
+          messages={messages}
+          isLoading={isLoading}
+          onSendMessage={sendMessage}
+          language={uiState.language}
+          primaryColor={uiState.primaryColor}
+        />
 
         {/* Footer */}
         <motion.footer
