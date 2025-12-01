@@ -1,10 +1,6 @@
 """
-Amy Dynamic UI Backend Service
-
-This service acts as the AI brain that:
-1. Chats with users
-2. Analyzes their preferences and needs
-3. Returns UI control instructions to dynamically adjust the frontend
+Amy AI Backend Service
+Handles AI-driven UI decisions and chat interactions for the Deriv trading platform POC.
 """
 
 import os
@@ -18,11 +14,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-app = FastAPI(
-    title="Amy Dynamic UI Service",
-    description="AI-driven dynamic UI control system",
-    version="1.0.0"
-)
+app = FastAPI(title="Amy AI Backend", version="1.0.0")
 
 # CORS for frontend
 app.add_middleware(
@@ -33,391 +25,481 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize OpenAI client
+# OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# UI Component definitions - what AI can control
-UI_COMPONENTS = {
-    "watchlist": {"name": "Watchlist", "description": "Shows tracked assets and their prices"},
-    "portfolio": {"name": "Portfolio Summary", "description": "Shows user's holdings and P&L"},
-    "chart": {"name": "Price Chart", "description": "Interactive price chart for selected asset"},
-    "orderPanel": {"name": "Order Panel", "description": "Quick trade execution panel"},
-    "news": {"name": "Market News", "description": "Latest financial news feed"},
-    "marketOverview": {"name": "Market Overview", "description": "Overall market status and indices"},
+# Available UI components that AI can control
+AVAILABLE_COMPONENTS = {
+    "chart": {"name": "Price Chart", "description": "Real-time price chart with trading indicators"},
+    "positions": {"name": "Open Positions", "description": "Shows current open trades and P/L"},
+    "watchlist": {"name": "Watchlist", "description": "User's favorite markets to track"},
+    "orderPanel": {"name": "Order Panel", "description": "Trade execution panel with buy/sell options"},
+    "marketOverview": {"name": "Market Overview", "description": "Summary of market conditions"},
+    "news": {"name": "News Feed", "description": "Latest financial news and updates"},
+    "portfolio": {"name": "Portfolio Summary", "description": "Account balance and portfolio breakdown"},
     "clock": {"name": "World Clock", "description": "Shows time in major financial centers"},
-    "calculator": {"name": "Position Calculator", "description": "Calculate position sizes and risk"},
+    "calculator": {"name": "Trading Calculator", "description": "Calculate position sizes and risk"},
 }
 
+# System prompt for Amy with layout awareness
+SYSTEM_PROMPT = """You are Amy, an intelligent AI assistant for a trading platform. You help users navigate and customize their trading interface with full control over the layout.
 
-class UIState(BaseModel):
-    """Current state of the UI"""
-    theme: str = "dark"  # dark, light
-    language: str = "en"  # en, es, fr, de, zh, ar
-    visibleComponents: list[str] = ["watchlist", "portfolio", "chart", "news"]
-    layout: str = "standard"  # standard, compact, expanded
-    primaryColor: str = "#3b82f6"  # Blue default
-    fontSize: str = "medium"  # small, medium, large
+## AVAILABLE COMPONENTS
+Each component can be shown/hidden, resized, and reordered:
+- chart: Price Chart (recommended: large or full)
+- positions: Open Positions panel (shows current trades)
+- watchlist: Favorite markets to track
+- orderPanel: Trade execution panel (essential for placing trades)
+- marketOverview: Market conditions summary
+- news: Financial news feed
+- portfolio: Account balance and summary
+- clock: World clock showing major financial center times
+- calculator: Trading calculator for position sizing
+
+## SIZE OPTIONS
+- "small": Takes 1/4 of the row (good for: clock, calculator, portfolio)
+- "medium": Takes 1/2 of the row (good for: positions, watchlist, orderPanel, news)
+- "large": Takes 3/4 of the row + 2 rows tall (good for: chart)
+- "full": Takes full width + 2 rows tall (good for: chart when focused)
+
+## ORDER
+Components are displayed in order from 0 (first/top-left) to 8 (last/bottom-right).
+Lower numbers appear first. You can reorder by changing the order numbers.
+
+## LAYOUT PRESETS
+- "default": Standard trading layout
+- "trading": Focus on chart, positions, and order panel
+- "minimal": Just chart and order panel
+- "analysis": Focus on market data, news, and analysis tools
+- "monitoring": Focus on positions and market overview
+
+## UI CONTROLS
+- theme: "dark" or "light"
+- language: "en", "es", "fr", "de", "zh", "ar", "ja", "pt", "ru"
+- accentColor: any hex color (e.g., "#ff444f" for Deriv red, "#00d0ff" for teal, "#00c853" for green)
+
+## RESPONSE FORMAT
+Respond in JSON format:
+{
+    "message": "Your helpful response explaining what you're doing",
+    "uiChanges": {
+        "layout": "preset_name",  // Optional: apply a preset first
+        "components": {
+            "componentName": {
+                "visible": true/false,
+                "size": "small/medium/large/full",
+                "order": 0-8
+            }
+            // Can also use simple: "componentName": true/false for just visibility
+        },
+        "theme": "dark/light",
+        "language": "en",
+        "accentColor": "#hex"
+    }
+}
+
+Only include fields you want to change. If no changes needed, set uiChanges to null.
+
+## IMPORTANT RULES
+1. The user's current layout is provided - use it to make intelligent decisions
+2. When user asks to "make X bigger", increase its size (small→medium→large→full)
+3. When user asks to "make X smaller", decrease its size
+4. When user asks to move something "left" or "up", decrease its order number
+5. When user asks to move something "right" or "down", increase its order number
+6. When user asks for X to be "on its own row", set its size to "full"
+7. Consider the trading context - traders need chart and order panel visible
+8. Be proactive about optimizing layout based on user's stated goals
+
+Be friendly, professional, and explain what layout changes you're making!"""
 
 
-class ChatRequest(BaseModel):
-    """Incoming chat request"""
+class ChatMessage(BaseModel):
     message: str
-    currentUIState: UIState
-    conversationHistory: list[dict] = []
-
-
-class UIUpdate(BaseModel):
-    """Instructions for UI changes"""
-    theme: Optional[str] = None
-    language: Optional[str] = None
-    showComponents: Optional[list[str]] = None
-    hideComponents: Optional[list[str]] = None
-    layout: Optional[str] = None
-    primaryColor: Optional[str] = None
-    fontSize: Optional[str] = None
-    reasoning: str = ""  # AI's reasoning for the changes
+    currentUI: Optional[dict] = None
+    layoutDescription: Optional[str] = None
 
 
 class ChatResponse(BaseModel):
-    """Response containing both chat reply and UI instructions"""
-    reply: str
-    uiUpdate: Optional[UIUpdate] = None
-    shouldUpdateUI: bool = False
+    message: str
+    uiChanges: Optional[dict] = None
 
 
-SYSTEM_PROMPT = """You are Amy, an intelligent AI assistant for a trading platform. You have a unique capability: you can dynamically adjust the user interface based on user preferences and needs.
-
-AVAILABLE UI COMPONENTS:
-- watchlist: Shows tracked assets and their prices
-- portfolio: Portfolio Summary showing user's holdings and P&L  
-- chart: Interactive price chart for selected asset
-- orderPanel: Quick trade execution panel
-- news: Market News feed with latest financial news
-- marketOverview: Overall market status and indices
-- clock: World Clock showing time in major financial centers
-- calculator: Position Calculator for calculating position sizes and risk
-
-CURRENT UI STATE:
-{ui_state}
-
-YOUR CAPABILITIES:
-1. Answer questions about trading, markets, and the platform
-2. Detect user preferences from conversation context
-3. Recommend and make UI changes when beneficial
-
-UI CONTROL OPTIONS:
-- theme: "dark" or "light"
-- language: "en", "es", "fr", "de", "zh", "ar" 
-- showComponents: list of component IDs to show
-- hideComponents: list of component IDs to hide
-- layout: "standard", "compact", "expanded"
-- primaryColor: hex color code (e.g., "#3b82f6")
-- fontSize: "small", "medium", "large"
-
-RESPONSE FORMAT:
-You must respond with valid JSON in this exact format:
-{{
-    "reply": "Your conversational response to the user",
-    "shouldUpdateUI": true/false,
-    "uiUpdate": {{
-        "theme": "dark/light or null",
-        "language": "language code or null", 
-        "showComponents": ["component1", "component2"] or null,
-        "hideComponents": ["component1"] or null,
-        "layout": "standard/compact/expanded or null",
-        "primaryColor": "#hexcode or null",
-        "fontSize": "small/medium/large or null",
-        "reasoning": "Brief explanation of why you're making these changes"
-    }}
-}}
-
-IMPORTANT GUIDELINES:
-- Only suggest UI changes when there's a clear benefit or user request
-- Be conversational and helpful in your replies
-- Consider context: if user mentions they're a beginner, simplify the UI
-- If user mentions they can't see well, increase font size
-- If user mentions a specific language, switch to it
-- If user asks about specific features, show relevant components
-- Professional traders might want more components, beginners fewer
-- Always explain UI changes naturally in your reply
-- Don't change the UI on every message - only when meaningful
-
-Examples of triggers for UI changes:
-- "I can't see very well" → increase fontSize
-- "It's too bright" → switch to dark theme  
-- "I want to see the news" → show news component
-- "Hablo español" → switch language to Spanish
-- "I'm new to trading" → simplify to fewer components
-- "Show me everything" → show all components
-- "What time is it in Tokyo?" → show clock component
-"""
+# Conversation history storage
+conversations: dict = {}
 
 
 @app.get("/")
-async def root():
-    """Health check endpoint"""
-    return {"status": "healthy", "service": "Amy Dynamic UI"}
+def root():
+    return {"status": "ok", "service": "Amy AI Backend", "version": "1.0.0"}
+
+
+@app.get("/health")
+def health():
+    return {"status": "healthy"}
 
 
 @app.get("/components")
-async def get_components():
-    """Get available UI components"""
-    return {"components": UI_COMPONENTS}
+def get_components():
+    """Return list of available UI components"""
+    return AVAILABLE_COMPONENTS
 
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
-    """
-    Main chat endpoint that returns both response and UI instructions
-    """
+async def chat(request: ChatMessage, session_id: str = "default"):
+    """Process chat message and return AI response with optional UI changes"""
+    
     if not os.getenv("OPENAI_API_KEY"):
-        raise HTTPException(status_code=500, detail="OpenAI API key not configured")
-    
-    # Build conversation context
-    ui_state_str = json.dumps(request.currentUIState.model_dump(), indent=2)
-    system_message = SYSTEM_PROMPT.format(ui_state=ui_state_str)
-    
-    messages = [{"role": "system", "content": system_message}]
-    
-    # Add conversation history
-    for msg in request.conversationHistory[-10:]:  # Keep last 10 messages for context
-        messages.append(msg)
-    
-    # Add current message
-    messages.append({"role": "user", "content": request.message})
+        return demo_response(request.message, request.currentUI, request.layoutDescription)
     
     try:
+        if session_id not in conversations:
+            conversations[session_id] = []
+        
+        # Build context with layout description
+        context = ""
+        if request.layoutDescription:
+            context = f"\n\n{request.layoutDescription}"
+        elif request.currentUI:
+            context = f"\n\nCurrent UI state: {json.dumps(request.currentUI)}"
+        
+        conversations[session_id].append({
+            "role": "user",
+            "content": request.message + context
+        })
+        
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}] + conversations[session_id][-10:]
+        
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=messages,
+            response_format={"type": "json_object"},
             temperature=0.7,
-            response_format={"type": "json_object"}
+            max_tokens=1000
         )
         
-        result = json.loads(response.choices[0].message.content)
+        content = response.choices[0].message.content
+        result = json.loads(content)
         
-        # Parse UI update if present
-        ui_update = None
-        if result.get("shouldUpdateUI") and result.get("uiUpdate"):
-            ui_update = UIUpdate(**result["uiUpdate"])
+        conversations[session_id].append({
+            "role": "assistant", 
+            "content": result.get("message", "")
+        })
         
         return ChatResponse(
-            reply=result.get("reply", "I'm sorry, I couldn't process that request."),
-            uiUpdate=ui_update,
-            shouldUpdateUI=result.get("shouldUpdateUI", False)
+            message=result.get("message", "I'm here to help!"),
+            uiChanges=result.get("uiChanges")
         )
         
-    except json.JSONDecodeError as e:
-        # If AI returns non-JSON, just return the text
-        return ChatResponse(
-            reply=response.choices[0].message.content,
-            shouldUpdateUI=False
-        )
     except Exception as e:
+        print(f"Error in chat: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/demo-chat", response_model=ChatResponse)
-async def demo_chat(request: ChatRequest):
-    """
-    Demo endpoint that works without OpenAI API key
-    Uses predefined responses to demonstrate the concept
-    """
-    message = request.message.lower()
-    current_state = request.currentUIState
+def demo_response(message: str, current_ui: Optional[dict], layout_desc: Optional[str]) -> ChatResponse:
+    """Demo responses with layout awareness"""
     
-    # Demo responses based on keywords
-    if "dark" in message or "bright" in message or "eyes" in message:
+    msg_lower = message.lower()
+    
+    # Layout presets
+    if "trading" in msg_lower and ("layout" in msg_lower or "setup" in msg_lower or "mode" in msg_lower):
         return ChatResponse(
-            reply="I've switched to dark mode for you. It's easier on the eyes, especially during long trading sessions. Let me know if you'd like any other adjustments!",
-            uiUpdate=UIUpdate(theme="dark", reasoning="User requested darker theme for comfort"),
-            shouldUpdateUI=True
+            message="Switching to trading layout! I've optimized the view with a large chart, your positions, and the order panel front and center. Let's trade! 📈",
+            uiChanges={"layout": "trading"}
         )
     
-    elif "light" in message or "brighter" in message:
+    if "minimal" in msg_lower or "simple" in msg_lower or "clean" in msg_lower:
         return ChatResponse(
-            reply="Switching to light mode! This can be better for well-lit environments. How does that look?",
-            uiUpdate=UIUpdate(theme="light", reasoning="User requested lighter theme"),
-            shouldUpdateUI=True
+            message="Here's a minimal, distraction-free layout with just the essentials: a full-width chart and the order panel. Perfect for focused trading! 🎯",
+            uiChanges={"layout": "minimal"}
         )
     
-    elif "español" in message or "spanish" in message:
+    if "analysis" in msg_lower or "research" in msg_lower:
         return ChatResponse(
-            reply="¡Por supuesto! He cambiado el idioma a español. La interfaz ahora mostrará todo en español. ¿Hay algo más en lo que pueda ayudarte?",
-            uiUpdate=UIUpdate(language="es", reasoning="User requested Spanish language"),
-            shouldUpdateUI=True
+            message="Switching to analysis mode! I've arranged the layout to focus on market data, news, and analysis tools. Great for market research! 📊",
+            uiChanges={"layout": "analysis"}
         )
     
-    elif "français" in message or "french" in message:
+    if "monitor" in msg_lower and ("layout" in msg_lower or "mode" in msg_lower):
         return ChatResponse(
-            reply="Bien sûr! J'ai changé la langue en français. L'interface affichera maintenant tout en français. Puis-je vous aider avec autre chose?",
-            uiUpdate=UIUpdate(language="fr", reasoning="User requested French language"),
-            shouldUpdateUI=True
+            message="Monitoring layout activated! Your positions are now prominent so you can keep a close eye on your trades. 👀",
+            uiChanges={"layout": "monitoring"}
         )
     
-    elif "中文" in message or "chinese" in message:
+    if "default" in msg_lower and "layout" in msg_lower:
         return ChatResponse(
-            reply="好的!我已将语言切换为中文。界面现在将以中文显示。还有什么我可以帮您的吗?",
-            uiUpdate=UIUpdate(language="zh", reasoning="User requested Chinese language"),
-            shouldUpdateUI=True
+            message="Restored the default layout! Everything is back to the standard arrangement. 🔄",
+            uiChanges={"layout": "default"}
         )
     
-    elif "bigger" in message or "larger" in message or "can't see" in message or "small text" in message:
-        return ChatResponse(
-            reply="I've increased the font size to make everything more readable. If you need it even larger, just let me know!",
-            uiUpdate=UIUpdate(fontSize="large", reasoning="User indicated difficulty reading text"),
-            shouldUpdateUI=True
-        )
-    
-    elif "smaller" in message or "compact" in message:
-        return ChatResponse(
-            reply="Done! I've made the text smaller and switched to a more compact layout so you can see more information at once.",
-            uiUpdate=UIUpdate(fontSize="small", layout="compact", reasoning="User wants more compact view"),
-            shouldUpdateUI=True
-        )
-    
-    elif "news" in message:
-        show = ["news"] if "news" not in current_state.visibleComponents else None
-        return ChatResponse(
-            reply="Here's the market news panel! I've added it to your dashboard. It shows the latest financial news and market updates. Would you like me to add any other components?",
-            uiUpdate=UIUpdate(showComponents=show, reasoning="User wants to see news") if show else None,
-            shouldUpdateUI=bool(show)
-        )
-    
-    elif "clock" in message or "time" in message:
-        show = ["clock"] if "clock" not in current_state.visibleComponents else None
-        return ChatResponse(
-            reply="I've added the World Clock to your dashboard! It shows the current time in major financial centers - New York, London, Tokyo, and Sydney. Very useful for knowing when different markets are open!",
-            uiUpdate=UIUpdate(showComponents=show, reasoning="User asked about time/clock") if show else None,
-            shouldUpdateUI=bool(show)
-        )
-    
-    elif "calculator" in message or "position size" in message or "risk" in message:
-        show = ["calculator"] if "calculator" not in current_state.visibleComponents else None
-        return ChatResponse(
-            reply="Great idea! I've added the Position Calculator to help you calculate position sizes and manage risk. It's a crucial tool for professional trading!",
-            uiUpdate=UIUpdate(showComponents=show, reasoning="User wants calculator") if show else None,
-            shouldUpdateUI=bool(show)
-        )
-    
-    elif "beginner" in message or "new to" in message or "simple" in message:
-        return ChatResponse(
-            reply="Welcome! I've simplified the interface for you, showing just the essentials: your watchlist, portfolio, and the price chart. As you get more comfortable, just ask me to add more features. I'm here to help you learn!",
-            uiUpdate=UIUpdate(
-                showComponents=["watchlist", "portfolio", "chart"],
-                hideComponents=["orderPanel", "news", "marketOverview", "clock", "calculator"],
-                layout="standard",
-                reasoning="User is a beginner, simplifying interface"
-            ),
-            shouldUpdateUI=True
-        )
-    
-    elif "everything" in message or "all" in message or "show me more" in message:
-        return ChatResponse(
-            reply="You got it! I've enabled all available components. You now have: Watchlist, Portfolio, Charts, Order Panel, News, Market Overview, World Clock, and Position Calculator. Feel free to ask me to hide anything you don't need!",
-            uiUpdate=UIUpdate(
-                showComponents=list(UI_COMPONENTS.keys()),
-                layout="expanded",
-                reasoning="User wants to see all components"
-            ),
-            shouldUpdateUI=True
-        )
-    
-    elif "hide" in message:
-        # Try to identify what to hide
-        to_hide = []
-        for comp in UI_COMPONENTS.keys():
-            if comp.lower() in message:
-                to_hide.append(comp)
+    # Size adjustments
+    if "bigger" in msg_lower or "larger" in msg_lower or "expand" in msg_lower:
+        component = None
+        if "chart" in msg_lower: component = "chart"
+        elif "position" in msg_lower: component = "positions"
+        elif "watchlist" in msg_lower: component = "watchlist"
+        elif "order" in msg_lower: component = "orderPanel"
+        elif "market" in msg_lower: component = "marketOverview"
+        elif "news" in msg_lower: component = "news"
+        elif "portfolio" in msg_lower: component = "portfolio"
+        elif "clock" in msg_lower: component = "clock"
+        elif "calculator" in msg_lower: component = "calculator"
         
-        if to_hide:
+        if component:
             return ChatResponse(
-                reply=f"Done! I've hidden the {', '.join(to_hide)} from your view. Let me know if you want it back anytime.",
-                uiUpdate=UIUpdate(hideComponents=to_hide, reasoning="User requested to hide components"),
-                shouldUpdateUI=True
+                message=f"Made the {AVAILABLE_COMPONENTS[component]['name']} larger! It now takes up more space on your screen. 📐",
+                uiChanges={"components": {component: {"size": "large" if component == "chart" else "medium"}}}
             )
     
-    elif "green" in message:
+    if "smaller" in msg_lower or "shrink" in msg_lower or "compact" in msg_lower:
+        component = None
+        if "chart" in msg_lower: component = "chart"
+        elif "position" in msg_lower: component = "positions"
+        elif "watchlist" in msg_lower: component = "watchlist"
+        elif "order" in msg_lower: component = "orderPanel"
+        elif "market" in msg_lower: component = "marketOverview"
+        elif "news" in msg_lower: component = "news"
+        elif "portfolio" in msg_lower: component = "portfolio"
+        elif "clock" in msg_lower: component = "clock"
+        elif "calculator" in msg_lower: component = "calculator"
+        
+        if component:
+            return ChatResponse(
+                message=f"Made the {AVAILABLE_COMPONENTS[component]['name']} smaller to save space! 📏",
+                uiChanges={"components": {component: {"size": "small"}}}
+            )
+    
+    if "full" in msg_lower and ("width" in msg_lower or "screen" in msg_lower or "row" in msg_lower):
+        component = None
+        if "chart" in msg_lower: component = "chart"
+        elif "position" in msg_lower: component = "positions"
+        elif "news" in msg_lower: component = "news"
+        
+        if component:
+            return ChatResponse(
+                message=f"The {AVAILABLE_COMPONENTS[component]['name']} now spans the full width! 📺",
+                uiChanges={"components": {component: {"size": "full"}}}
+            )
+    
+    # Movement commands
+    if "move" in msg_lower and ("left" in msg_lower or "first" in msg_lower or "top" in msg_lower or "beginning" in msg_lower):
+        component = None
+        if "chart" in msg_lower: component = "chart"
+        elif "position" in msg_lower: component = "positions"
+        elif "watchlist" in msg_lower: component = "watchlist"
+        elif "order" in msg_lower: component = "orderPanel"
+        elif "market" in msg_lower: component = "marketOverview"
+        elif "news" in msg_lower: component = "news"
+        elif "portfolio" in msg_lower: component = "portfolio"
+        elif "clock" in msg_lower: component = "clock"
+        elif "calculator" in msg_lower: component = "calculator"
+        
+        if component:
+            return ChatResponse(
+                message=f"Moved {AVAILABLE_COMPONENTS[component]['name']} to the beginning of the layout! ⬅️",
+                uiChanges={"components": {component: {"order": 0}}}
+            )
+    
+    if "move" in msg_lower and ("right" in msg_lower or "last" in msg_lower or "end" in msg_lower or "bottom" in msg_lower):
+        component = None
+        if "chart" in msg_lower: component = "chart"
+        elif "position" in msg_lower: component = "positions"
+        elif "watchlist" in msg_lower: component = "watchlist"
+        elif "order" in msg_lower: component = "orderPanel"
+        elif "market" in msg_lower: component = "marketOverview"
+        elif "news" in msg_lower: component = "news"
+        elif "portfolio" in msg_lower: component = "portfolio"
+        elif "clock" in msg_lower: component = "clock"
+        elif "calculator" in msg_lower: component = "calculator"
+        
+        if component:
+            return ChatResponse(
+                message=f"Moved {AVAILABLE_COMPONENTS[component]['name']} to the end of the layout! ➡️",
+                uiChanges={"components": {component: {"order": 8}}}
+            )
+    
+    # Theme changes
+    if "dark" in msg_lower and ("theme" in msg_lower or "mode" in msg_lower):
         return ChatResponse(
-            reply="Nice choice! Green is associated with growth and prosperity - perfect for trading! I've updated the accent color.",
-            uiUpdate=UIUpdate(primaryColor="#22c55e", reasoning="User wants green color"),
-            shouldUpdateUI=True
+            message="Switching to dark theme for easier viewing during long trading sessions! 🌙",
+            uiChanges={"theme": "dark"}
         )
     
-    elif "red" in message:
+    if "light" in msg_lower and ("theme" in msg_lower or "mode" in msg_lower):
         return ChatResponse(
-            reply="Going with red! Bold choice. I've updated the accent color for you.",
-            uiUpdate=UIUpdate(primaryColor="#ef4444", reasoning="User wants red color"),
-            shouldUpdateUI=True
+            message="Switching to light theme! Great for well-lit environments. ☀️",
+            uiChanges={"theme": "light"}
         )
     
-    elif "blue" in message:
+    # Language changes
+    if "spanish" in msg_lower or "español" in msg_lower:
         return ChatResponse(
-            reply="Blue it is! A classic, professional choice. I've updated the accent color.",
-            uiUpdate=UIUpdate(primaryColor="#3b82f6", reasoning="User wants blue color"),
-            shouldUpdateUI=True
+            message="¡Cambiando a español! La interfaz ahora se mostrará en español.",
+            uiChanges={"language": "es"}
         )
     
-    elif "purple" in message:
+    if "french" in msg_lower or "français" in msg_lower:
         return ChatResponse(
-            reply="Purple - sophisticated taste! I've updated the accent color to purple.",
-            uiUpdate=UIUpdate(primaryColor="#a855f7", reasoning="User wants purple color"),
-            shouldUpdateUI=True
+            message="Passage au français ! L'interface sera maintenant en français.",
+            uiChanges={"language": "fr"}
         )
     
-    elif "reset" in message or "default" in message:
+    if "english" in msg_lower:
         return ChatResponse(
-            reply="No problem! I've reset your interface to the default settings. Fresh start!",
-            uiUpdate=UIUpdate(
-                theme="dark",
-                language="en",
-                showComponents=["watchlist", "portfolio", "chart", "news"],
-                hideComponents=["orderPanel", "marketOverview", "clock", "calculator"],
-                layout="standard",
-                primaryColor="#3b82f6",
-                fontSize="medium",
-                reasoning="User wants to reset to defaults"
-            ),
-            shouldUpdateUI=True
+            message="Switching back to English!",
+            uiChanges={"language": "en"}
         )
     
-    # Default conversational responses
-    elif "hello" in message or "hi" in message or "hey" in message:
+    if "chinese" in msg_lower or "中文" in msg_lower:
         return ChatResponse(
-            reply="Hello! I'm Amy, your AI trading assistant. I can help you with market information, answer questions, and even customize this interface to match your preferences. Try asking me to change the theme, show different components, or switch languages!",
-            shouldUpdateUI=False
+            message="切换到中文！界面现在将以中文显示。",
+            uiChanges={"language": "zh"}
         )
     
-    elif "help" in message or "what can you do" in message:
+    if "arabic" in msg_lower or "العربية" in msg_lower:
         return ChatResponse(
-            reply="""I can help you in many ways! Here are some things you can ask me:
+            message="تم التبديل إلى العربية! ستظهر الواجهة الآن باللغة العربية.",
+            uiChanges={"language": "ar"}
+        )
+    
+    # Visibility toggles
+    if "hide" in msg_lower or "close" in msg_lower or "remove" in msg_lower:
+        components = {}
+        if "chart" in msg_lower:
+            components["chart"] = {"visible": False}
+        if "position" in msg_lower:
+            components["positions"] = {"visible": False}
+        if "watchlist" in msg_lower or "watch list" in msg_lower:
+            components["watchlist"] = {"visible": False}
+        if "order" in msg_lower:
+            components["orderPanel"] = {"visible": False}
+        if "market" in msg_lower and "overview" in msg_lower:
+            components["marketOverview"] = {"visible": False}
+        if "news" in msg_lower:
+            components["news"] = {"visible": False}
+        if "portfolio" in msg_lower:
+            components["portfolio"] = {"visible": False}
+        if "clock" in msg_lower:
+            components["clock"] = {"visible": False}
+        if "calculator" in msg_lower:
+            components["calculator"] = {"visible": False}
+        
+        if components:
+            names = [AVAILABLE_COMPONENTS.get(k.replace('"visible": False', ''), {}).get("name", k) for k in components.keys()]
+            return ChatResponse(
+                message=f"Hidden {', '.join([AVAILABLE_COMPONENTS[k]['name'] for k in components.keys()])}. The layout automatically adjusts to fill the space! 👋",
+                uiChanges={"components": components}
+            )
+    
+    if "show" in msg_lower or "open" in msg_lower or "add" in msg_lower or "display" in msg_lower:
+        components = {}
+        if "chart" in msg_lower:
+            components["chart"] = {"visible": True, "size": "large"}
+        if "position" in msg_lower:
+            components["positions"] = {"visible": True, "size": "medium"}
+        if "watchlist" in msg_lower or "watch list" in msg_lower:
+            components["watchlist"] = {"visible": True, "size": "medium"}
+        if "order" in msg_lower:
+            components["orderPanel"] = {"visible": True, "size": "medium"}
+        if "market" in msg_lower and "overview" in msg_lower:
+            components["marketOverview"] = {"visible": True, "size": "small"}
+        if "news" in msg_lower:
+            components["news"] = {"visible": True, "size": "small"}
+        if "portfolio" in msg_lower:
+            components["portfolio"] = {"visible": True, "size": "small"}
+        if "clock" in msg_lower:
+            components["clock"] = {"visible": True, "size": "small"}
+        if "calculator" in msg_lower:
+            components["calculator"] = {"visible": True, "size": "small"}
+        if "everything" in msg_lower or "all" in msg_lower:
+            components = {k: {"visible": True} for k in AVAILABLE_COMPONENTS.keys()}
+        
+        if components:
+            return ChatResponse(
+                message=f"Added {', '.join([AVAILABLE_COMPONENTS[k]['name'] for k in components.keys()])} to your workspace! 📊",
+                uiChanges={"components": components}
+            )
+    
+    # Color changes
+    if "red" in msg_lower and "color" in msg_lower:
+        return ChatResponse(
+            message="Changed the accent color to Deriv red! 🔴",
+            uiChanges={"accentColor": "#ff444f"}
+        )
+    
+    if "blue" in msg_lower and "color" in msg_lower:
+        return ChatResponse(
+            message="Changed the accent color to blue! 🔵",
+            uiChanges={"accentColor": "#0066ff"}
+        )
+    
+    if "green" in msg_lower and "color" in msg_lower:
+        return ChatResponse(
+            message="Changed the accent color to green! 🟢",
+            uiChanges={"accentColor": "#00c853"}
+        )
+    
+    if ("teal" in msg_lower or "cyan" in msg_lower) and "color" in msg_lower:
+        return ChatResponse(
+            message="Changed the accent color to teal! Perfect for that modern look! 💎",
+            uiChanges={"accentColor": "#00d0ff"}
+        )
+    
+    if "purple" in msg_lower and "color" in msg_lower:
+        return ChatResponse(
+            message="Changed the accent color to purple! 💜",
+            uiChanges={"accentColor": "#9c27b0"}
+        )
+    
+    if "orange" in msg_lower and "color" in msg_lower:
+        return ChatResponse(
+            message="Changed the accent color to orange! 🟠",
+            uiChanges={"accentColor": "#ff9800"}
+        )
+    
+    # Help
+    if "help" in msg_lower or "what can you do" in msg_lower:
+        return ChatResponse(
+            message="""Hi! I'm Amy, your AI trading assistant. Here's what I can do:
 
-**UI Customization:**
-• "Switch to dark/light mode"
-• "Make the text bigger/smaller"
-• "Show me the news/clock/calculator"
-• "I'm a beginner" - I'll simplify the interface
-• "Show me everything" - Full dashboard
-• "Change color to green/blue/red/purple"
-• "Switch to Spanish/French/Chinese"
+🎨 **UI Customization:**
+- "Switch to dark/light theme"
+- "Hide the news panel" / "Show the calculator"
+- "Change color to blue/red/green/purple"
 
-**Trading Help:**
-• Ask about market conditions
-• Get help understanding features
-• Learn about trading concepts
+📐 **Layout Control:**
+- "Make the chart bigger" / "Make positions smaller"
+- "Move the chart to the top"
+- "Put the positions on its own row" (full width)
+- "Switch to trading/minimal/analysis layout"
 
-Just chat naturally and I'll adapt the interface to your needs!""",
-            shouldUpdateUI=False
+🌍 **Language:**
+- "Switch to Spanish/French/Chinese/Arabic"
+
+📊 **Layout Presets:**
+- "Trading layout" - Focus on chart & order panel
+- "Minimal layout" - Just the essentials
+- "Analysis layout" - Market data & news focus
+- "Monitoring layout" - Watch your positions
+
+Just tell me what you need! 🚀""",
+            uiChanges=None
         )
     
-    else:
-        return ChatResponse(
-            reply=f"I understand you're asking about '{request.message}'. As your AI assistant, I can help with trading questions and customize your interface. Try asking me to change the theme, show different components, or adjust the layout. What would you like me to help with?",
-            shouldUpdateUI=False
-        )
+    # Default response
+    return ChatResponse(
+        message=f"I can help you customize your trading interface! Try:\n\n• \"Make the chart bigger\"\n• \"Switch to trading layout\"\n• \"Move positions to the top\"\n• \"Hide the news\"\n• \"Show everything\"\n\nWhat would you like to adjust?",
+        uiChanges=None
+    )
+
+
+@app.post("/reset")
+async def reset_session(session_id: str = "default"):
+    """Reset conversation history for a session"""
+    if session_id in conversations:
+        del conversations[session_id]
+    return {"status": "ok", "message": "Session reset"}
 
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-

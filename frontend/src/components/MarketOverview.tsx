@@ -1,57 +1,75 @@
-import { motion } from 'framer-motion';
-import { Globe, TrendingUp, TrendingDown } from 'lucide-react';
-import { translations } from '../types';
+import { memo } from 'react';
+import { MarketInfo, Language, translations } from '../types';
 
-interface Props {
-  language: string;
-  primaryColor: string;
+interface MarketOverviewProps {
+  markets: MarketInfo[];
+  language: Language;
 }
 
-const marketIndices = [
-  { name: 'S&P 500', value: 4567.89, change: 1.23 },
-  { name: 'NASDAQ', value: 14234.56, change: 1.87 },
-  { name: 'DOW', value: 35678.90, change: 0.45 },
-  { name: 'BTC.D', value: 52.4, change: -0.32, suffix: '%' },
-  { name: 'Fear & Greed', value: 67, change: 5, suffix: '' },
-];
+export const MarketOverview = memo(function MarketOverview({ markets, language }: MarketOverviewProps) {
+  const t = translations[language];
 
-export function MarketOverview({ language, primaryColor }: Props) {
-  const t = translations[language] || translations.en;
+  const gainers = [...markets].sort((a, b) => b.change_percent - a.change_percent).slice(0, 3);
+  const losers = [...markets].sort((a, b) => a.change_percent - b.change_percent).slice(0, 3);
+  const avgChange = markets.length > 0 
+    ? markets.reduce((sum, m) => sum + m.change_percent, 0) / markets.length 
+    : 0;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl p-4 h-full"
-    >
-      <div className="flex items-center gap-2 mb-4">
-        <Globe className="w-5 h-5" style={{ color: primaryColor }} />
-        <h2 className="text-lg font-semibold">{t.marketOverview}</h2>
+    <div className="h-full flex flex-col">
+      <div className="card-header">
+        <span>{t.marketOverview}</span>
+        <div className={`text-sm font-medium ${avgChange >= 0 ? 'price-up' : 'price-down'}`}>
+          {avgChange >= 0 ? '▲' : '▼'} {Math.abs(avgChange).toFixed(2)}%
+        </div>
       </div>
+      
+      <div className="card-content">
+        <div className="grid grid-cols-2 gap-4">
+          {/* Gainers */}
+          <div>
+            <div className="text-xs text-deriv-text mb-2 uppercase tracking-wider">Top Gainers</div>
+            <div className="space-y-2">
+              {gainers.map((m) => (
+                <div key={m.symbol} className="flex items-center justify-between text-sm">
+                  <span className="truncate max-w-[80px]">{m.display_name.split(' ')[1] || m.display_name.split(' ')[0]}</span>
+                  <span className="price-up font-mono">+{m.change_percent.toFixed(2)}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {marketIndices.map((index, i) => (
-          <motion.div
-            key={index.name}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: i * 0.1 }}
-            className="p-3 rounded-xl bg-white/5 dark:bg-black/20"
-          >
-            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">{index.name}</div>
-            <div className="font-mono font-semibold">
-              {index.suffix !== '' && !index.suffix ? '$' : ''}
-              {index.value.toLocaleString()}
-              {index.suffix || ''}
+          {/* Losers */}
+          <div>
+            <div className="text-xs text-deriv-text mb-2 uppercase tracking-wider">Top Losers</div>
+            <div className="space-y-2">
+              {losers.map((m) => (
+                <div key={m.symbol} className="flex items-center justify-between text-sm">
+                  <span className="truncate max-w-[80px]">{m.display_name.split(' ')[1] || m.display_name.split(' ')[0]}</span>
+                  <span className="price-down font-mono">{m.change_percent.toFixed(2)}%</span>
+                </div>
+              ))}
             </div>
-            <div className={`flex items-center gap-1 text-xs ${index.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-              {index.change >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-              {index.change >= 0 ? '+' : ''}{index.change}%
-            </div>
-          </motion.div>
-        ))}
+          </div>
+        </div>
+
+        {/* Market sentiment */}
+        <div className="mt-4 pt-4 border-t border-deriv-border">
+          <div className="text-xs text-deriv-text mb-2">Market Sentiment</div>
+          <div className="h-2 bg-deriv-border rounded-full overflow-hidden flex">
+            <div 
+              className="bg-deriv-green transition-all duration-500"
+              style={{ width: `${50 + avgChange * 5}%` }}
+            />
+            <div className="bg-deriv-red flex-1" />
+          </div>
+          <div className="flex justify-between mt-1 text-xs text-deriv-text">
+            <span>Bullish</span>
+            <span>Bearish</span>
+          </div>
+        </div>
       </div>
-    </motion.div>
+    </div>
   );
-}
+});
 

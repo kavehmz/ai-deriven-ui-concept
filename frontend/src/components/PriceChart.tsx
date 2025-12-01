@@ -1,151 +1,208 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { XAxis, YAxis, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
-import { BarChart3 } from 'lucide-react';
-import { translations } from '../types';
+import { memo, useEffect, useRef } from 'react';
+import { createChart, IChartApi, ISeriesApi, ColorType, UTCTimestamp } from 'lightweight-charts';
+import { DerivCandle, DerivTick, MarketInfo } from '../types';
 
-interface Props {
-  language: string;
-  primaryColor: string;
+interface PriceChartProps {
+  candles: DerivCandle[];
+  tick: DerivTick | undefined;
+  markets: MarketInfo[];
+  selectedSymbol: string;
+  onSymbolChange: (symbol: string) => void;
+  theme: 'dark' | 'light';
+  accentColor: string;
 }
 
-// Generate initial chart data
-function generateChartData(days: number) {
-  const data = [];
-  let price = 43000;
-  const now = Date.now();
-  
-  for (let i = days; i >= 0; i--) {
-    price = price + (Math.random() - 0.48) * 500;
-    data.push({
-      time: new Date(now - i * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      price: Math.round(price * 100) / 100,
-      volume: Math.round(Math.random() * 1000000000),
-    });
-  }
-  
-  return data;
-}
+export const PriceChart = memo(function PriceChart({ 
+  candles, 
+  tick, 
+  markets,
+  selectedSymbol,
+  onSymbolChange,
+  theme,
+  accentColor
+}: PriceChartProps) {
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
 
-export function PriceChart({ language, primaryColor }: Props) {
-  const [chartData, setChartData] = useState(() => generateChartData(30));
-  const [selectedPeriod, setSelectedPeriod] = useState('1M');
-  const t = translations[language] || translations.en;
+  const currentMarket = markets.find(m => m.symbol === selectedSymbol);
+  const currentPrice = tick?.quote ?? currentMarket?.quote ?? 0;
+  const priceChange = currentMarket?.change ?? 0;
+  const priceChangePercent = currentMarket?.change_percent ?? 0;
 
-  const periods = ['1D', '1W', '1M', '3M', '1Y'];
-
-  // Simulate live updates
   useEffect(() => {
-    const interval = setInterval(() => {
-      setChartData((prev) => {
-        const newData = [...prev];
-        const lastPrice = newData[newData.length - 1].price;
-        newData[newData.length - 1] = {
-          ...newData[newData.length - 1],
-          price: lastPrice + (Math.random() - 0.5) * 100,
-        };
-        return newData;
-      });
-    }, 2000);
+    if (!chartContainerRef.current) return;
 
-    return () => clearInterval(interval);
-  }, []);
+    const isDark = theme === 'dark';
+    
+    const chart = createChart(chartContainerRef.current, {
+      layout: {
+        background: { type: ColorType.Solid, color: 'transparent' },
+        textColor: isDark ? '#c2c2c2' : '#333333',
+      },
+      grid: {
+        vertLines: { color: isDark ? '#2a2a2a' : '#e0e0e0' },
+        horzLines: { color: isDark ? '#2a2a2a' : '#e0e0e0' },
+      },
+      width: chartContainerRef.current.clientWidth,
+      height: chartContainerRef.current.clientHeight - 60,
+      rightPriceScale: {
+        borderColor: isDark ? '#2a2a2a' : '#e0e0e0',
+      },
+      timeScale: {
+        borderColor: isDark ? '#2a2a2a' : '#e0e0e0',
+        timeVisible: true,
+        secondsVisible: false,
+      },
+      crosshair: {
+        vertLine: {
+          color: accentColor,
+          labelBackgroundColor: accentColor,
+        },
+        horzLine: {
+          color: accentColor,
+          labelBackgroundColor: accentColor,
+        },
+      },
+    });
 
-  const currentPrice = chartData[chartData.length - 1]?.price || 0;
-  const startPrice = chartData[0]?.price || 0;
-  const priceChange = currentPrice - startPrice;
-  const priceChangePercent = (priceChange / startPrice) * 100;
+    const candleSeries = chart.addCandlestickSeries({
+      upColor: '#00c853',
+      downColor: '#ff444f',
+      borderUpColor: '#00c853',
+      borderDownColor: '#ff444f',
+      wickUpColor: '#00c853',
+      wickDownColor: '#ff444f',
+    });
+
+    chartRef.current = chart;
+    seriesRef.current = candleSeries;
+
+    // Handle resize
+    const handleResize = () => {
+      if (chartContainerRef.current) {
+        chart.applyOptions({
+          width: chartContainerRef.current.clientWidth,
+          height: chartContainerRef.current.clientHeight - 60,
+        });
+      }
+    };
+
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(chartContainerRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+      chart.remove();
+    };
+  }, [theme, accentColor]);
+
+  // Update data
+  useEffect(() => {
+    if (seriesRef.current && candles.length > 0) {
+      const data = candles.map(c => ({
+        time: c.time as UTCTimestamp,
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+      }));
+      seriesRef.current.setData(data);
+      chartRef.current?.timeScale().fitContent();
+    }
+  }, [candles]);
+
+  // Update latest tick
+  useEffect(() => {
+    if (seriesRef.current && tick && candles.length > 0) {
+      const lastCandle = candles[candles.length - 1];
+      if (lastCandle) {
+        seriesRef.current.update({
+          time: lastCandle.time as UTCTimestamp,
+          open: lastCandle.open,
+          high: Math.max(lastCandle.high, tick.quote),
+          low: Math.min(lastCandle.low, tick.quote),
+          close: tick.quote,
+        });
+      }
+    }
+  }, [tick, candles]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl p-4 h-full flex flex-col"
-    >
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <BarChart3 className="w-5 h-5" style={{ color: primaryColor }} />
-          <h2 className="text-lg font-semibold">{t.chart}</h2>
-        </div>
-        <div className="flex gap-1">
-          {periods.map((period) => (
-            <button
-              key={period}
-              onClick={() => setSelectedPeriod(period)}
-              className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                selectedPeriod === period
-                  ? 'text-white'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-white/10'
-              }`}
-              style={selectedPeriod === period ? { backgroundColor: primaryColor } : {}}
+    <div className="h-full flex flex-col">
+      {/* Symbol selector */}
+      <div className="card-header">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+            {selectedSymbol.substring(0, 2)}
+          </div>
+          <div>
+            <select 
+              value={selectedSymbol}
+              onChange={(e) => onSymbolChange(e.target.value)}
+              className="bg-transparent font-semibold text-lg cursor-pointer hover:opacity-80 border-none outline-none"
             >
-              {period}
-            </button>
-          ))}
+              {markets.map(m => (
+                <option key={m.symbol} value={m.symbol} className="bg-deriv-card text-white">
+                  {m.display_name}
+                </option>
+              ))}
+            </select>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className={`text-lg font-mono ${priceChange >= 0 ? 'price-up' : 'price-down'}`}>
+                {currentPrice.toFixed(2)}
+              </span>
+              <span className={`text-sm ${priceChange >= 0 ? 'price-up' : 'price-down'}`}>
+                {priceChange >= 0 ? '▲' : '▼'} {Math.abs(priceChange).toFixed(2)} ({Math.abs(priceChangePercent).toFixed(2)}%)
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Chart tools */}
+        <div className="flex items-center gap-2">
+          <button className="p-2 rounded hover:bg-white/5 transition-colors" title="1 Tick">
+            <span className="text-xs font-mono">1T</span>
+          </button>
+          <button className="p-2 rounded hover:bg-white/5 transition-colors" title="Indicators">
+            <svg className="w-5 h-5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </button>
+          <button className="p-2 rounded hover:bg-white/5 transition-colors" title="Drawing tools">
+            <svg className="w-5 h-5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+          </button>
         </div>
       </div>
 
-      {/* Price Header */}
-      <div className="mb-4">
-        <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-bold font-mono">BTC/USD</span>
-        </div>
-        <div className="flex items-baseline gap-3">
-          <span className="text-2xl font-mono">
-            ${currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </span>
-          <span className={`font-mono ${priceChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-            {priceChange >= 0 ? '+' : ''}{priceChangePercent.toFixed(2)}%
-          </span>
-        </div>
+      {/* Chart container */}
+      <div ref={chartContainerRef} className="flex-1 relative">
+        {candles.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center text-deriv-text">
+            <div className="typing-indicator">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Chart */}
-      <div className="flex-1 min-h-[200px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-            <defs>
-              <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={primaryColor} stopOpacity={0.3} />
-                <stop offset="95%" stopColor={primaryColor} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <XAxis
-              dataKey="time"
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: '#6b7280', fontSize: 10 }}
-              interval="preserveStartEnd"
-            />
-            <YAxis
-              domain={['auto', 'auto']}
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: '#6b7280', fontSize: 10 }}
-              width={60}
-              tickFormatter={(value) => `$${(value / 1000).toFixed(1)}k`}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'rgba(17, 24, 39, 0.9)',
-                border: 'none',
-                borderRadius: '8px',
-                color: '#fff',
-              }}
-              formatter={(value: number) => [`$${value.toLocaleString()}`, 'Price']}
-            />
-            <Area
-              type="monotone"
-              dataKey="price"
-              stroke={primaryColor}
-              strokeWidth={2}
-              fillOpacity={1}
-              fill="url(#colorPrice)"
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+      {/* Time stats bar */}
+      <div className="flex items-center justify-center gap-4 py-2 border-t border-deriv-border dark:border-deriv-border light:border-deriv-lightBorder text-xs text-deriv-text">
+        <span className="flex items-center gap-1">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Stats
+        </span>
+        {[95, 1, 1, 27, 12, 17, 4, 64, 53, 6].map((num, i) => (
+          <span key={i} className="font-mono">{num}</span>
+        ))}
       </div>
-    </motion.div>
+    </div>
   );
-}
+});
 

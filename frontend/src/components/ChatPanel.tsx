@@ -1,250 +1,189 @@
-import { useState, useRef, useEffect } from 'react';
+import { memo, useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, Send, Sparkles, X, Minimize2 } from 'lucide-react';
-import { ChatMessage, translations } from '../types';
+import { ChatMessage, UIState, Language, translations } from '../types';
 
-interface Props {
+interface ChatPanelProps {
   messages: ChatMessage[];
   isLoading: boolean;
-  onSendMessage: (message: string) => void;
-  language: string;
-  primaryColor: string;
+  onSendMessage: (message: string, currentUI: UIState) => void;
+  currentUI: UIState;
+  accentColor: string;
+  language: Language;
+  layoutDescription: string;
 }
 
-export function ChatPanel({ messages, isLoading, onSendMessage, language, primaryColor }: Props) {
-  const [input, setInput] = useState('');
+export const ChatPanel = memo(function ChatPanel({
+  messages,
+  isLoading,
+  onSendMessage,
+  currentUI,
+  accentColor,
+  language,
+  layoutDescription
+}: ChatPanelProps) {
+  void layoutDescription; // Used in currentUI context
+  const t = translations[language];
   const [isOpen, setIsOpen] = useState(false);
+  const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const t = translations[language] || translations.en;
+  const inputRef = useRef<HTMLInputElement>(null);
 
+  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Auto-open on first load
+  // Focus input when opened
   useEffect(() => {
-    const timer = setTimeout(() => setIsOpen(true), 1000);
-    return () => clearTimeout(timer);
-  }, []);
+    if (isOpen) {
+      inputRef.current?.focus();
+    }
+  }, [isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim() && !isLoading) {
-      onSendMessage(input.trim());
+      onSendMessage(input.trim(), currentUI);
       setInput('');
     }
   };
 
-  // Quick action suggestions
-  const suggestions = [
-    { label: '🌙 Dark', message: 'Switch to dark mode' },
-    { label: '☀️ Light', message: 'Switch to light mode' },
-    { label: '🇪🇸 Español', message: 'Cambia a español' },
-    { label: '📊 Show all', message: 'Show me everything' },
-    { label: '🔤 Bigger', message: 'Make the text bigger' },
-  ];
-
   return (
-    <>
-      {/* Floating Chat Button */}
-      <AnimatePresence>
-        {!isOpen && (
-          <motion.button
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setIsOpen(true)}
-            className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white z-50"
-            style={{ backgroundColor: primaryColor, boxShadow: `0 4px 20px ${primaryColor}66` }}
-          >
-            <Sparkles className="w-6 h-6" />
-            {/* Notification dot for new messages */}
-            {messages.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-xs flex items-center justify-center">
-                {messages.length}
-              </span>
-            )}
-          </motion.button>
-        )}
-      </AnimatePresence>
-
-      {/* Chat Window */}
+    <div className="chat-floating" dir="ltr">
       <AnimatePresence>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            className="fixed bottom-6 right-6 w-[380px] max-w-[calc(100vw-3rem)] h-[500px] max-h-[calc(100vh-6rem)] glass rounded-2xl flex flex-col overflow-hidden shadow-2xl z-50"
-            style={{ boxShadow: `0 8px 40px rgba(0,0,0,0.3), 0 0 0 1px ${primaryColor}33` }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="chat-panel"
           >
             {/* Header */}
             <div 
-              className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700"
-              style={{ borderColor: `${primaryColor}33` }}
+              className="flex items-center gap-3 p-4 border-b border-deriv-border dark:border-deriv-border light:border-deriv-lightBorder"
+              style={{ background: `linear-gradient(135deg, ${accentColor}15 0%, transparent 100%)` }}
             >
-              <div className="flex items-center gap-2">
-                <div 
-                  className="w-8 h-8 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: `${primaryColor}33` }}
-                >
-                  <Sparkles className="w-4 h-4" style={{ color: primaryColor }} />
-                </div>
-                <div>
-                  <h2 className="font-semibold text-sm">Amy</h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">AI UI Assistant</p>
-                </div>
+              <div className="amy-avatar w-10 h-10 rounded-full flex items-center justify-center text-white font-bold" style={{ background: accentColor }}>
+                A
               </div>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-                  title="Minimize"
-                >
-                  <Minimize2 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-                  title="Close"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+              <div className="flex-1">
+                <div className="font-semibold">Amy</div>
+                <div className="text-xs text-deriv-text">AI Trading Assistant</div>
               </div>
+              <button 
+                onClick={() => setIsOpen(false)}
+                className="p-2 hover:bg-white/10 rounded-full transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {/* Welcome message */}
-              {messages.length === 0 && (
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[320px]">
+              {messages.map((msg) => (
                 <motion.div
+                  key={msg.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="space-y-4"
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className="flex gap-3">
-                    <div 
-                      className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center"
-                      style={{ backgroundColor: `${primaryColor}33` }}
-                    >
-                      <Sparkles className="w-4 h-4" style={{ color: primaryColor }} />
+                  <div
+                    className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
+                      msg.role === 'user'
+                        ? 'accent-bg text-white rounded-br-sm'
+                        : 'bg-white/10 dark:bg-white/10 light:bg-black/5 rounded-bl-sm'
+                    }`}
+                  >
+                    <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
+                    <div className={`text-xs mt-1 ${msg.role === 'user' ? 'text-white/60' : 'text-deriv-text'}`}>
+                      {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
-                    <div className="flex-1 bg-white/10 dark:bg-black/20 rounded-2xl rounded-tl-none p-3">
-                      <p className="text-sm">{t.welcomeMessage}</p>
-                    </div>
-                  </div>
-
-                  {/* Suggestions */}
-                  <div className="flex flex-wrap gap-2 pl-11">
-                    {suggestions.map((suggestion) => (
-                      <motion.button
-                        key={suggestion.label}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => onSendMessage(suggestion.message)}
-                        className="px-3 py-1.5 text-xs rounded-full bg-white/10 dark:bg-black/20 hover:bg-white/20 dark:hover:bg-black/30 transition-colors"
-                      >
-                        {suggestion.label}
-                      </motion.button>
-                    ))}
                   </div>
                 </motion.div>
-              )}
-
-              {/* Chat messages */}
-              <AnimatePresence>
-                {messages.map((message, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
-                  >
-                    <div 
-                      className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${
-                        message.role === 'user' 
-                          ? 'bg-gray-200 dark:bg-gray-700' 
-                          : ''
-                      }`}
-                      style={message.role === 'assistant' ? { backgroundColor: `${primaryColor}33` } : {}}
-                    >
-                      {message.role === 'assistant' ? (
-                        <Sparkles className="w-4 h-4" style={{ color: primaryColor }} />
-                      ) : (
-                        <MessageCircle className="w-4 h-4" />
-                      )}
-                    </div>
-                    <div 
-                      className={`max-w-[75%] rounded-2xl p-3 ${
-                        message.role === 'user'
-                          ? 'rounded-tr-none text-white'
-                          : 'bg-white/10 dark:bg-black/20 rounded-tl-none'
-                      }`}
-                      style={message.role === 'user' ? { backgroundColor: primaryColor } : {}}
-                    >
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-
-              {/* Loading indicator */}
+              ))}
+              
               {isLoading && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex gap-3"
-                >
-                  <div 
-                    className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center"
-                    style={{ backgroundColor: `${primaryColor}33` }}
-                  >
-                    <Sparkles className="w-4 h-4 animate-pulse" style={{ color: primaryColor }} />
-                  </div>
-                  <div className="bg-white/10 dark:bg-black/20 rounded-2xl rounded-tl-none p-3">
-                    <div className="flex gap-1">
-                      <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: primaryColor, animationDelay: '0ms' }} />
-                      <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: primaryColor, animationDelay: '150ms' }} />
-                      <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: primaryColor, animationDelay: '300ms' }} />
+                <div className="flex justify-start">
+                  <div className="bg-white/10 rounded-2xl rounded-bl-sm px-4 py-3">
+                    <div className="typing-indicator">
+                      <span></span>
+                      <span></span>
+                      <span></span>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               )}
-
+              
               <div ref={messagesEndRef} />
             </div>
 
             {/* Input */}
-            <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200 dark:border-gray-700">
-              <div className="flex gap-2">
+            <form onSubmit={handleSubmit} className="p-4 border-t border-deriv-border dark:border-deriv-border light:border-deriv-lightBorder">
+              <div className="flex items-center gap-2">
                 <input
+                  ref={inputRef}
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder={t.typeMessage}
+                  placeholder={t.chatPlaceholder}
+                  className="flex-1 input-field text-sm"
                   disabled={isLoading}
-                  className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-xl px-4 py-2 text-sm border-none outline-none focus:ring-2 transition-all disabled:opacity-50"
-                  style={{ '--tw-ring-color': primaryColor } as React.CSSProperties}
                 />
-                <motion.button
+                <button
                   type="submit"
                   disabled={!input.trim() || isLoading}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="p-2 rounded-xl text-white disabled:opacity-50 transition-all"
-                  style={{ backgroundColor: primaryColor }}
+                  className="p-3 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
+                  style={{ background: accentColor }}
                 >
-                  <Send className="w-5 h-5" />
-                </motion.button>
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                </button>
               </div>
             </form>
           </motion.div>
         )}
       </AnimatePresence>
-    </>
+
+      {/* Chat bubble */}
+      <motion.button
+        onClick={() => setIsOpen(!isOpen)}
+        className="chat-bubble"
+        style={{ background: accentColor }}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        <AnimatePresence mode="wait">
+          {isOpen ? (
+            <motion.svg
+              key="close"
+              initial={{ rotate: -90, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              exit={{ rotate: 90, opacity: 0 }}
+              className="w-6 h-6 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </motion.svg>
+          ) : (
+            <motion.div
+              key="amy"
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.5, opacity: 0 }}
+              className="text-white font-bold text-xl"
+            >
+              A
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.button>
+    </div>
   );
-}
+});
+

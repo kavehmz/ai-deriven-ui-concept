@@ -1,85 +1,96 @@
-import { motion } from 'framer-motion';
-import { Wallet, TrendingUp, TrendingDown } from 'lucide-react';
-import { PortfolioItem, translations } from '../types';
+import { memo } from 'react';
+import { DerivBalance, Language, translations } from '../types';
 
-interface Props {
-  language: string;
-  primaryColor: string;
+interface PortfolioProps {
+  balance: DerivBalance | null;
+  language: Language;
+  accentColor: string;
 }
 
-const portfolioData: PortfolioItem[] = [
-  { symbol: 'BTC', name: 'Bitcoin', quantity: 0.5, avgPrice: 38000, currentPrice: 43250, pnl: 2625, pnlPercent: 13.82 },
-  { symbol: 'ETH', name: 'Ethereum', quantity: 5, avgPrice: 2100, currentPrice: 2280, pnl: 900, pnlPercent: 8.57 },
-  { symbol: 'AAPL', name: 'Apple', quantity: 25, avgPrice: 175, currentPrice: 190, pnl: 375, pnlPercent: 8.57 },
-  { symbol: 'GOOGL', name: 'Alphabet', quantity: 10, avgPrice: 150, currentPrice: 142, pnl: -80, pnlPercent: -5.33 },
-];
-
-export function Portfolio({ language, primaryColor }: Props) {
-  const t = translations[language] || translations.en;
+export const Portfolio = memo(function Portfolio({ balance, language, accentColor }: PortfolioProps) {
+  const t = translations[language];
   
-  const totalValue = portfolioData.reduce((sum, item) => sum + item.quantity * item.currentPrice, 0);
-  const totalPnL = portfolioData.reduce((sum, item) => sum + item.pnl, 0);
-  const totalPnLPercent = (totalPnL / (totalValue - totalPnL)) * 100;
+  // Demo balance if not authorized
+  const displayBalance = balance || {
+    balance: 9819.26,
+    currency: 'USD',
+    loginid: 'VRTC1234567',
+    account_type: 'Demo'
+  };
+
+  // Mock portfolio breakdown
+  const breakdown = [
+    { label: 'Available', value: displayBalance.balance * 0.85, color: accentColor },
+    { label: 'In trades', value: displayBalance.balance * 0.12, color: '#00c853' },
+    { label: 'Reserved', value: displayBalance.balance * 0.03, color: '#ffc107' },
+  ];
+
+  const total = breakdown.reduce((sum, item) => sum + item.value, 0);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl p-4 h-full"
-    >
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Wallet className="w-5 h-5" style={{ color: primaryColor }} />
-          {t.portfolio}
-        </h2>
+    <div className="h-full flex flex-col">
+      <div className="card-header">
+        <span>{t.portfolio}</span>
+        <span className="text-xs px-2 py-0.5 rounded bg-deriv-green/20 text-deriv-green">
+          {displayBalance.account_type}
+        </span>
       </div>
-
-      {/* Total Portfolio Value */}
-      <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 dark:from-blue-500/10 dark:to-purple-500/10">
-        <div className="text-sm text-gray-600 dark:text-gray-400">{t.total}</div>
-        <div className="text-2xl font-bold font-mono">
-          ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </div>
-        <div className={`flex items-center gap-1 text-sm ${totalPnL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-          {totalPnL >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-          <span className="font-mono">
-            {totalPnL >= 0 ? '+' : ''}${totalPnL.toLocaleString()} ({totalPnLPercent.toFixed(2)}%)
-          </span>
-        </div>
-      </div>
-
-      {/* Holdings */}
-      <div className="space-y-2">
-        <div className="grid grid-cols-4 text-xs text-gray-500 dark:text-gray-400 px-2 pb-2 border-b border-gray-200 dark:border-gray-700">
-          <span>{t.symbol}</span>
-          <span className="text-right">{t.quantity}</span>
-          <span className="text-right">{t.price}</span>
-          <span className="text-right">{t.pnl}</span>
+      
+      <div className="card-content">
+        {/* Total Balance */}
+        <div className="text-center mb-4">
+          <div className="text-xs text-deriv-text mb-1">{t.balance}</div>
+          <div className="text-3xl font-bold" style={{ color: accentColor }}>
+            {displayBalance.balance.toLocaleString('en-US', { 
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2 
+            })}
+          </div>
+          <div className="text-sm text-deriv-text">{displayBalance.currency}</div>
         </div>
 
-        {portfolioData.map((item, index) => (
-          <motion.div
-            key={item.symbol}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="grid grid-cols-4 items-center p-2 rounded-lg hover:bg-white/10 dark:hover:bg-black/20 transition-colors"
-          >
-            <div>
-              <div className="font-mono font-semibold">{item.symbol}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">{item.name}</div>
+        {/* Progress bar breakdown */}
+        <div className="h-3 rounded-full overflow-hidden flex mb-3">
+          {breakdown.map((item, i) => (
+            <div 
+              key={i}
+              className="transition-all duration-500"
+              style={{ 
+                width: `${(item.value / total) * 100}%`,
+                backgroundColor: item.color,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Legend */}
+        <div className="space-y-2">
+          {breakdown.map((item, i) => (
+            <div key={i} className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <div 
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: item.color }}
+                />
+                <span className="text-deriv-text">{item.label}</span>
+              </div>
+              <span className="font-mono">
+                {item.value.toLocaleString('en-US', { 
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2 
+                })} {displayBalance.currency}
+              </span>
             </div>
-            <div className="text-right font-mono">{item.quantity}</div>
-            <div className="text-right font-mono">
-              ${item.currentPrice.toLocaleString()}
-            </div>
-            <div className={`text-right font-mono text-sm ${item.pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-              {item.pnl >= 0 ? '+' : ''}{item.pnlPercent.toFixed(2)}%
-            </div>
-          </motion.div>
-        ))}
+          ))}
+        </div>
+
+        {/* Account ID */}
+        <div className="mt-4 pt-4 border-t border-deriv-border text-center">
+          <div className="text-xs text-deriv-text">Account ID</div>
+          <div className="font-mono text-sm">{displayBalance.loginid}</div>
+        </div>
       </div>
-    </motion.div>
+    </div>
   );
-}
+});
 

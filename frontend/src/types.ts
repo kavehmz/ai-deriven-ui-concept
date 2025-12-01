@@ -1,205 +1,316 @@
+// Component size options
+export type ComponentSize = 'small' | 'medium' | 'large' | 'full';
+
+// Individual component configuration
+export interface ComponentConfig {
+  visible: boolean;
+  size: ComponentSize;
+  order: number; // Lower numbers appear first
+}
+
+// All component configurations
+export interface ComponentsConfig {
+  chart: ComponentConfig;
+  positions: ComponentConfig;
+  watchlist: ComponentConfig;
+  orderPanel: ComponentConfig;
+  marketOverview: ComponentConfig;
+  news: ComponentConfig;
+  portfolio: ComponentConfig;
+  clock: ComponentConfig;
+  calculator: ComponentConfig;
+}
+
+// Legacy visibility type for backwards compatibility
+export interface ComponentVisibility {
+  chart: boolean;
+  positions: boolean;
+  watchlist: boolean;
+  orderPanel: boolean;
+  marketOverview: boolean;
+  news: boolean;
+  portfolio: boolean;
+  clock: boolean;
+  calculator: boolean;
+}
+
+// UI State managed by AI
 export interface UIState {
+  components: ComponentsConfig;
   theme: 'dark' | 'light';
-  language: string;
-  visibleComponents: string[];
-  layout: 'standard' | 'compact' | 'expanded';
-  primaryColor: string;
-  fontSize: 'small' | 'medium' | 'large';
+  language: Language;
+  accentColor: string;
 }
 
-export interface UIUpdate {
-  theme?: 'dark' | 'light' | null;
-  language?: string | null;
-  showComponents?: string[] | null;
-  hideComponents?: string[] | null;
-  layout?: 'standard' | 'compact' | 'expanded' | null;
-  primaryColor?: string | null;
-  fontSize?: 'small' | 'medium' | 'large' | null;
-  reasoning?: string;
+export type Language = 'en' | 'es' | 'fr' | 'de' | 'zh' | 'ar' | 'ja' | 'pt' | 'ru';
+
+// UI Changes from AI - supports both simple visibility and full config
+export interface UIChanges {
+  components?: Partial<{
+    [K in keyof ComponentsConfig]: Partial<ComponentConfig> | boolean;
+  }>;
+  theme?: 'dark' | 'light';
+  language?: Language;
+  accentColor?: string;
+  // Layout presets
+  layout?: 'default' | 'trading' | 'minimal' | 'analysis' | 'monitoring';
 }
 
+// Chat types
 export interface ChatMessage {
+  id: string;
   role: 'user' | 'assistant';
   content: string;
+  timestamp: Date;
 }
 
 export interface ChatResponse {
-  reply: string;
-  uiUpdate?: UIUpdate | null;
-  shouldUpdateUI: boolean;
+  message: string;
+  uiChanges?: UIChanges;
 }
 
-export interface Asset {
+// Deriv API types
+export interface DerivTick {
   symbol: string;
-  name: string;
-  price: number;
-  change: number;
-  changePercent: number;
-  volume: string;
+  quote: number;
+  epoch: number;
 }
 
-export interface PortfolioItem {
+export interface DerivCandle {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+}
+
+export interface DerivPosition {
+  contract_id: string;
   symbol: string;
-  name: string;
-  quantity: number;
-  avgPrice: number;
-  currentPrice: number;
+  contract_type: string;
+  buy_price: number;
+  current_price: number;
   pnl: number;
-  pnlPercent: number;
+  pnl_percentage: number;
 }
 
-export interface NewsItem {
-  id: string;
-  title: string;
-  source: string;
-  time: string;
-  sentiment: 'positive' | 'negative' | 'neutral';
+export interface DerivBalance {
+  balance: number;
+  currency: string;
+  loginid: string;
+  account_type: string;
 }
 
-export const translations: Record<string, Record<string, string>> = {
+export interface MarketInfo {
+  symbol: string;
+  display_name: string;
+  market: string;
+  submarket: string;
+  pip: number;
+  quote: number;
+  change: number;
+  change_percent: number;
+}
+
+// Translations
+export const translations: Record<Language, Record<string, string>> = {
   en: {
-    watchlist: 'Watchlist',
+    openPositions: 'Open Positions',
     portfolio: 'Portfolio',
-    chart: 'Price Chart',
-    orderPanel: 'Quick Trade',
-    news: 'Market News',
+    watchlist: 'Watchlist',
     marketOverview: 'Market Overview',
-    clock: 'World Clock',
-    calculator: 'Position Calculator',
-    typeMessage: 'Type a message to Amy...',
-    send: 'Send',
-    price: 'Price',
-    change: 'Change',
-    volume: 'Volume',
-    symbol: 'Symbol',
-    quantity: 'Qty',
-    avgPrice: 'Avg Price',
-    pnl: 'P&L',
+    news: 'News',
+    calculator: 'Calculator',
+    worldClock: 'World Clock',
     buy: 'Buy',
     sell: 'Sell',
-    amount: 'Amount',
-    total: 'Total',
-    welcomeMessage: "Hi! I'm Amy, your AI trading assistant. I can customize this interface based on your preferences. Try asking me to change the theme, show different components, or switch languages!",
+    stake: 'Stake',
+    payout: 'Payout',
+    profit: 'Profit',
+    loss: 'Loss',
+    balance: 'Balance',
+    chatPlaceholder: 'Ask Amy to customize your trading view...',
+    send: 'Send',
+    totalPnL: 'Total P/L',
+    close: 'Close',
+    noPositions: 'No open positions',
+    loading: 'Loading...',
   },
   es: {
-    watchlist: 'Lista de Seguimiento',
+    openPositions: 'Posiciones Abiertas',
     portfolio: 'Portafolio',
-    chart: 'Gráfico de Precios',
-    orderPanel: 'Orden Rápida',
-    news: 'Noticias del Mercado',
+    watchlist: 'Lista de Seguimiento',
     marketOverview: 'Resumen del Mercado',
-    clock: 'Reloj Mundial',
-    calculator: 'Calculadora de Posición',
-    typeMessage: 'Escribe un mensaje a Amy...',
-    send: 'Enviar',
-    price: 'Precio',
-    change: 'Cambio',
-    volume: 'Volumen',
-    symbol: 'Símbolo',
-    quantity: 'Cantidad',
-    avgPrice: 'Precio Promedio',
-    pnl: 'Ganancia/Pérdida',
+    news: 'Noticias',
+    calculator: 'Calculadora',
+    worldClock: 'Reloj Mundial',
     buy: 'Comprar',
     sell: 'Vender',
-    amount: 'Cantidad',
-    total: 'Total',
-    welcomeMessage: '¡Hola! Soy Amy, tu asistente de trading con IA. Puedo personalizar esta interfaz según tus preferencias. ¡Prueba a pedirme que cambie el tema, muestre diferentes componentes o cambie de idioma!',
+    stake: 'Apuesta',
+    payout: 'Pago',
+    profit: 'Ganancia',
+    loss: 'Pérdida',
+    balance: 'Saldo',
+    chatPlaceholder: 'Pide a Amy que personalice tu vista...',
+    send: 'Enviar',
+    totalPnL: 'G/P Total',
+    close: 'Cerrar',
+    noPositions: 'Sin posiciones abiertas',
+    loading: 'Cargando...',
   },
   fr: {
-    watchlist: 'Liste de Surveillance',
+    openPositions: 'Positions Ouvertes',
     portfolio: 'Portefeuille',
-    chart: 'Graphique des Prix',
-    orderPanel: 'Ordre Rapide',
-    news: 'Actualités du Marché',
+    watchlist: 'Liste de Suivi',
     marketOverview: 'Aperçu du Marché',
-    clock: 'Horloge Mondiale',
-    calculator: 'Calculateur de Position',
-    typeMessage: 'Écrivez un message à Amy...',
-    send: 'Envoyer',
-    price: 'Prix',
-    change: 'Variation',
-    volume: 'Volume',
-    symbol: 'Symbole',
-    quantity: 'Qté',
-    avgPrice: 'Prix Moyen',
-    pnl: 'P&L',
+    news: 'Actualités',
+    calculator: 'Calculatrice',
+    worldClock: 'Horloge Mondiale',
     buy: 'Acheter',
     sell: 'Vendre',
-    amount: 'Montant',
-    total: 'Total',
-    welcomeMessage: "Bonjour! Je suis Amy, votre assistant de trading IA. Je peux personnaliser cette interface selon vos préférences. Essayez de me demander de changer le thème, d'afficher différents composants ou de changer de langue!",
+    stake: 'Mise',
+    payout: 'Paiement',
+    profit: 'Profit',
+    loss: 'Perte',
+    balance: 'Solde',
+    chatPlaceholder: 'Demandez à Amy de personnaliser votre vue...',
+    send: 'Envoyer',
+    totalPnL: 'P/P Total',
+    close: 'Fermer',
+    noPositions: 'Aucune position ouverte',
+    loading: 'Chargement...',
   },
   de: {
-    watchlist: 'Beobachtungsliste',
+    openPositions: 'Offene Positionen',
     portfolio: 'Portfolio',
-    chart: 'Preischart',
-    orderPanel: 'Schnellhandel',
-    news: 'Marktnachrichten',
+    watchlist: 'Beobachtungsliste',
     marketOverview: 'Marktübersicht',
-    clock: 'Weltzeit',
-    calculator: 'Positionsrechner',
-    typeMessage: 'Nachricht an Amy schreiben...',
-    send: 'Senden',
-    price: 'Preis',
-    change: 'Änderung',
-    volume: 'Volumen',
-    symbol: 'Symbol',
-    quantity: 'Menge',
-    avgPrice: 'Durchschnittspreis',
-    pnl: 'Gewinn/Verlust',
+    news: 'Nachrichten',
+    calculator: 'Rechner',
+    worldClock: 'Weltzeituhr',
     buy: 'Kaufen',
     sell: 'Verkaufen',
-    amount: 'Betrag',
-    total: 'Gesamt',
-    welcomeMessage: 'Hallo! Ich bin Amy, Ihr KI-Handelsassistent. Ich kann diese Oberfläche nach Ihren Wünschen anpassen. Bitten Sie mich, das Thema zu ändern, verschiedene Komponenten anzuzeigen oder die Sprache zu wechseln!',
+    stake: 'Einsatz',
+    payout: 'Auszahlung',
+    profit: 'Gewinn',
+    loss: 'Verlust',
+    balance: 'Guthaben',
+    chatPlaceholder: 'Fragen Sie Amy, Ihre Ansicht anzupassen...',
+    send: 'Senden',
+    totalPnL: 'Gesamt G/V',
+    close: 'Schließen',
+    noPositions: 'Keine offenen Positionen',
+    loading: 'Laden...',
   },
   zh: {
-    watchlist: '自选列表',
+    openPositions: '持仓',
     portfolio: '投资组合',
-    chart: '价格图表',
-    orderPanel: '快速交易',
-    news: '市场新闻',
+    watchlist: '自选列表',
     marketOverview: '市场概览',
-    clock: '世界时钟',
-    calculator: '仓位计算器',
-    typeMessage: '给Amy发送消息...',
-    send: '发送',
-    price: '价格',
-    change: '涨跌',
-    volume: '成交量',
-    symbol: '代码',
-    quantity: '数量',
-    avgPrice: '均价',
-    pnl: '盈亏',
+    news: '新闻',
+    calculator: '计算器',
+    worldClock: '世界时钟',
     buy: '买入',
     sell: '卖出',
-    amount: '金额',
-    total: '总计',
-    welcomeMessage: '你好！我是Amy，你的AI交易助手。我可以根据你的喜好定制这个界面。试着让我改变主题、显示不同的组件或切换语言！',
+    stake: '投注',
+    payout: '派息',
+    profit: '盈利',
+    loss: '亏损',
+    balance: '余额',
+    chatPlaceholder: '让Amy帮您定制交易界面...',
+    send: '发送',
+    totalPnL: '总盈亏',
+    close: '关闭',
+    noPositions: '暂无持仓',
+    loading: '加载中...',
   },
   ar: {
-    watchlist: 'قائمة المراقبة',
+    openPositions: 'المراكز المفتوحة',
     portfolio: 'المحفظة',
-    chart: 'مخطط الأسعار',
-    orderPanel: 'تداول سريع',
-    news: 'أخبار السوق',
+    watchlist: 'قائمة المراقبة',
     marketOverview: 'نظرة عامة على السوق',
-    clock: 'الساعة العالمية',
-    calculator: 'حاسبة المركز',
-    typeMessage: 'اكتب رسالة إلى Amy...',
-    send: 'إرسال',
-    price: 'السعر',
-    change: 'التغيير',
-    volume: 'الحجم',
-    symbol: 'الرمز',
-    quantity: 'الكمية',
-    avgPrice: 'متوسط السعر',
-    pnl: 'الربح/الخسارة',
+    news: 'الأخبار',
+    calculator: 'الآلة الحاسبة',
+    worldClock: 'الساعة العالمية',
     buy: 'شراء',
     sell: 'بيع',
-    amount: 'المبلغ',
-    total: 'المجموع',
-    welcomeMessage: 'مرحبًا! أنا Amy، مساعد التداول الذكي الخاص بك. يمكنني تخصيص هذه الواجهة وفقًا لتفضيلاتك. جرب أن تطلب مني تغيير السمة أو عرض مكونات مختلفة أو تبديل اللغات!',
+    stake: 'المبلغ',
+    payout: 'الدفع',
+    profit: 'ربح',
+    loss: 'خسارة',
+    balance: 'الرصيد',
+    chatPlaceholder: 'اطلب من إيمي تخصيص واجهتك...',
+    send: 'إرسال',
+    totalPnL: 'إجمالي الربح/الخسارة',
+    close: 'إغلاق',
+    noPositions: 'لا توجد مراكز مفتوحة',
+    loading: 'جار التحميل...',
+  },
+  ja: {
+    openPositions: 'オープンポジション',
+    portfolio: 'ポートフォリオ',
+    watchlist: 'ウォッチリスト',
+    marketOverview: 'マーケット概要',
+    news: 'ニュース',
+    calculator: '計算機',
+    worldClock: '世界時計',
+    buy: '買い',
+    sell: '売り',
+    stake: 'ステーク',
+    payout: 'ペイアウト',
+    profit: '利益',
+    loss: '損失',
+    balance: '残高',
+    chatPlaceholder: 'Amyに画面をカスタマイズしてもらう...',
+    send: '送信',
+    totalPnL: '合計損益',
+    close: '閉じる',
+    noPositions: 'ポジションなし',
+    loading: '読み込み中...',
+  },
+  pt: {
+    openPositions: 'Posições Abertas',
+    portfolio: 'Portfólio',
+    watchlist: 'Lista de Observação',
+    marketOverview: 'Visão do Mercado',
+    news: 'Notícias',
+    calculator: 'Calculadora',
+    worldClock: 'Relógio Mundial',
+    buy: 'Comprar',
+    sell: 'Vender',
+    stake: 'Aposta',
+    payout: 'Pagamento',
+    profit: 'Lucro',
+    loss: 'Perda',
+    balance: 'Saldo',
+    chatPlaceholder: 'Peça à Amy para personalizar sua visualização...',
+    send: 'Enviar',
+    totalPnL: 'L/P Total',
+    close: 'Fechar',
+    noPositions: 'Sem posições abertas',
+    loading: 'Carregando...',
+  },
+  ru: {
+    openPositions: 'Открытые позиции',
+    portfolio: 'Портфель',
+    watchlist: 'Список наблюдения',
+    marketOverview: 'Обзор рынка',
+    news: 'Новости',
+    calculator: 'Калькулятор',
+    worldClock: 'Мировые часы',
+    buy: 'Купить',
+    sell: 'Продать',
+    stake: 'Ставка',
+    payout: 'Выплата',
+    profit: 'Прибыль',
+    loss: 'Убыток',
+    balance: 'Баланс',
+    chatPlaceholder: 'Попросите Amy настроить ваш вид...',
+    send: 'Отправить',
+    totalPnL: 'Общий P/L',
+    close: 'Закрыть',
+    noPositions: 'Нет открытых позиций',
+    loading: 'Загрузка...',
   },
 };
 

@@ -1,104 +1,95 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Clock } from 'lucide-react';
-import { translations } from '../types';
+import { memo, useState, useEffect } from 'react';
+import { Language, translations } from '../types';
 
-interface Props {
-  language: string;
-  primaryColor: string;
+interface WorldClockProps {
+  language: Language;
 }
 
-const cities = [
-  { name: 'New York', timezone: 'America/New_York', market: 'NYSE' },
-  { name: 'London', timezone: 'Europe/London', market: 'LSE' },
-  { name: 'Tokyo', timezone: 'Asia/Tokyo', market: 'TSE' },
-  { name: 'Sydney', timezone: 'Australia/Sydney', market: 'ASX' },
+interface CityTime {
+  city: string;
+  timezone: string;
+  flag: string;
+  market: string;
+  isOpen: boolean;
+}
+
+const cities: CityTime[] = [
+  { city: 'New York', timezone: 'America/New_York', flag: '🇺🇸', market: 'NYSE', isOpen: false },
+  { city: 'London', timezone: 'Europe/London', flag: '🇬🇧', market: 'LSE', isOpen: false },
+  { city: 'Tokyo', timezone: 'Asia/Tokyo', flag: '🇯🇵', market: 'TSE', isOpen: false },
+  { city: 'Sydney', timezone: 'Australia/Sydney', flag: '🇦🇺', market: 'ASX', isOpen: false },
+  { city: 'Dubai', timezone: 'Asia/Dubai', flag: '🇦🇪', market: 'DFM', isOpen: false },
+  { city: 'Singapore', timezone: 'Asia/Singapore', flag: '🇸🇬', market: 'SGX', isOpen: false },
 ];
 
-function getTimeInTimezone(timezone: string): string {
-  return new Date().toLocaleTimeString('en-US', {
-    timeZone: timezone,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  });
-}
-
-function isMarketOpen(timezone: string): boolean {
-  const now = new Date();
-  const options: Intl.DateTimeFormatOptions = { timeZone: timezone, hour: 'numeric', weekday: 'short' };
-  const formatter = new Intl.DateTimeFormat('en-US', options);
-  const parts = formatter.formatToParts(now);
-  
-  const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
-  const weekday = parts.find(p => p.type === 'weekday')?.value || '';
-  
-  // Simple check: markets open roughly 9-17 on weekdays
-  const isWeekday = !['Sat', 'Sun'].includes(weekday);
-  const isBusinessHours = hour >= 9 && hour < 17;
-  
-  return isWeekday && isBusinessHours;
-}
-
-export function WorldClock({ language, primaryColor }: Props) {
-  const [times, setTimes] = useState<Record<string, string>>({});
-  const t = translations[language] || translations.en;
+export const WorldClock = memo(function WorldClock({ language }: WorldClockProps) {
+  const t = translations[language];
+  const [times, setTimes] = useState<Record<string, { time: string; isOpen: boolean }>>({});
 
   useEffect(() => {
     const updateTimes = () => {
-      const newTimes: Record<string, string> = {};
-      cities.forEach(city => {
-        newTimes[city.timezone] = getTimeInTimezone(city.timezone);
+      const newTimes: Record<string, { time: string; isOpen: boolean }> = {};
+      
+      cities.forEach((city) => {
+        const now = new Date();
+        const time = now.toLocaleTimeString('en-US', {
+          timeZone: city.timezone,
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        });
+        
+        // Simple market hours check (rough approximation)
+        const hour = parseInt(time.split(':')[0]);
+        const isOpen = hour >= 9 && hour < 17;
+        
+        newTimes[city.city] = { time, isOpen };
       });
+      
       setTimes(newTimes);
     };
 
     updateTimes();
     const interval = setInterval(updateTimes, 1000);
+    
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl p-4 h-full"
-    >
-      <div className="flex items-center gap-2 mb-4">
-        <Clock className="w-5 h-5" style={{ color: primaryColor }} />
-        <h2 className="text-lg font-semibold">{t.clock}</h2>
+    <div className="h-full flex flex-col">
+      <div className="card-header">
+        <span>{t.worldClock}</span>
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 rounded-full bg-deriv-green animate-pulse" />
+          <span className="text-xs text-deriv-text">Live</span>
+        </div>
       </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        {cities.map((city, index) => {
-          const isOpen = isMarketOpen(city.timezone);
-          return (
-            <motion.div
-              key={city.name}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.1 }}
-              className="p-3 rounded-xl bg-white/5 dark:bg-black/20"
+      
+      <div className="card-content">
+        <div className="grid grid-cols-2 gap-3">
+          {cities.map((city) => (
+            <div 
+              key={city.city}
+              className="flex items-center justify-between p-2 rounded-lg bg-white/5"
             >
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium">{city.name}</span>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${
-                  isOpen 
-                    ? 'bg-green-500/20 text-green-500' 
-                    : 'bg-red-500/20 text-red-500'
-                }`}>
-                  {city.market}
-                </span>
+              <div className="flex items-center gap-2">
+                <span className="text-lg">{city.flag}</span>
+                <div>
+                  <div className="text-sm font-medium">{city.city}</div>
+                  <div className="text-xs text-deriv-text">{city.market}</div>
+                </div>
               </div>
-              <div className="font-mono text-2xl font-bold" style={{ color: primaryColor }}>
-                {times[city.timezone] || '--:--:--'}
+              <div className="text-right">
+                <div className="font-mono text-sm">{times[city.city]?.time || '--:--'}</div>
+                <div className={`text-xs ${times[city.city]?.isOpen ? 'text-deriv-green' : 'text-deriv-text'}`}>
+                  {times[city.city]?.isOpen ? 'Open' : 'Closed'}
+                </div>
               </div>
-            </motion.div>
-          );
-        })}
+            </div>
+          ))}
+        </div>
       </div>
-    </motion.div>
+    </div>
   );
-}
+});
 

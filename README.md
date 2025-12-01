@@ -1,79 +1,54 @@
-# Amy - AI-Driven Dynamic UI
+# Amy AI Trading Platform POC
 
-> **The Future of User Experience**: An AI that knows your system is in the best position to design the interface for you.
+A proof-of-concept demonstrating how AI can dynamically control and customize a trading UI based on user interactions. Built for Deriv's trading platform.
 
-This is a Proof of Concept demonstrating how AI can dynamically control and customize the user interface based on natural language conversations. Instead of static UIs, Amy creates **Dynamic AI Designs** that adapt to user preferences, needs, and context.
+![Amy Trading Platform](images/shot1.png)
 
-![Concept](https://via.placeholder.com/800x400/1e1b4b/ffffff?text=Amy+Dynamic+UI+POC)
+## 🚀 Features
 
-## 🌟 Key Features
+- **AI-Driven UI Customization**: Chat with Amy to show/hide components, change themes, switch languages
+- **Real-time Deriv API Integration**: Live market data via WebSocket from api.deriv.com
+- **Floating Chat Interface**: Non-intrusive AI assistant that doesn't take up dashboard space
+- **Dynamic Layout**: CSS Grid that automatically adjusts when components are hidden
+- **Multi-language Support**: EN, ES, FR, DE, ZH, AR, JA, PT, RU with RTL support for Arabic
+- **Customizable Themes**: Dark/Light modes with customizable accent colors
 
-### AI-Controlled UI Elements
-- **Theme**: Dark/Light mode switching
-- **Language**: Multi-language support (English, Spanish, French, German, Chinese, Arabic)
-- **Components**: Show/hide dashboard modules dynamically
-- **Layout**: Standard, Compact, or Expanded views
-- **Colors**: Dynamic accent color changes
-- **Font Size**: Accessibility adjustments
+## 🏗️ Architecture
 
-### Modular Dashboard Components
-- 📊 **Watchlist** - Track assets with real-time price updates
-- 💼 **Portfolio** - View holdings and P&L
-- 📈 **Price Chart** - Interactive charts with multiple timeframes
-- 🔄 **Order Panel** - Quick trade execution
-- 📰 **News Feed** - Market news with sentiment indicators
-- 🌍 **Market Overview** - Global indices at a glance
-- 🕐 **World Clock** - Time in major financial centers
-- 🧮 **Position Calculator** - Risk management tool
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   React Frontend │ ←→ │  Python Backend  │ ←→ │   OpenAI API    │
+│   (Vite + TS)   │     │    (FastAPI)     │     │   (GPT-4o)      │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+         ↓
+┌─────────────────┐
+│   Deriv API     │
+│   (WebSocket)   │
+└─────────────────┘
+```
 
-### AI Conversation Examples
-
-| You Say | Amy Does |
-|---------|----------|
-| "It's too bright" | Switches to dark mode |
-| "Hablo español" | Changes interface to Spanish |
-| "I can't see well" | Increases font size |
-| "Show me the news" | Adds news component |
-| "I'm new to trading" | Simplifies to beginner layout |
-| "Show me everything" | Enables all components |
-| "Change color to green" | Updates accent color |
-
-## 🚀 Quick Start
+## 🛠️ Quick Start
 
 ### Using Docker Compose (Recommended)
 
-1. **Clone and navigate to the project:**
+1. **Clone and setup environment:**
    ```bash
-   cd amy-ui-cursor
+   cd amy-ui-cursor-api
+   
+   # Optional: Set your OpenAI API key for full AI features
+   export OPENAI_API_KEY=your_api_key_here
    ```
 
-2. **Start everything with one command:**
+2. **Start the application:**
    ```bash
    docker-compose up --build
    ```
 
-3. **Open your browser:**
+3. **Access the app:**
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:8000
 
-### With OpenAI Integration (Optional)
-
-To enable full AI responses (instead of demo mode):
-
-1. **Create a `.env` file in the root:**
-   ```bash
-   echo "OPENAI_API_KEY=your_api_key_here" > .env
-   ```
-
-2. **Update the frontend to use the `/chat` endpoint:**
-   Edit `frontend/src/hooks/useChat.ts` and change `demo-chat` to `chat`
-
-3. **Rebuild and run:**
-   ```bash
-   docker-compose up --build
-   ```
-
-### Local Development
+### Manual Development Setup
 
 **Backend:**
 ```bash
@@ -81,6 +56,10 @@ cd backend
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
+
+# Optional: Set OpenAI API key
+export OPENAI_API_KEY=your_api_key_here
+
 uvicorn main:app --reload --port 8000
 ```
 
@@ -91,73 +70,75 @@ npm install
 npm run dev
 ```
 
-## 🏗️ Architecture
+## 💬 Talking to Amy
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        Frontend (React)                      │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │                    UI State Manager                  │    │
-│  │  • Theme, Language, Components, Layout, Colors       │    │
-│  │  • Persisted in localStorage                         │    │
-│  └─────────────────────────────────────────────────────┘    │
-│                            │                                 │
-│  ┌─────────────────────────▼─────────────────────────────┐  │
-│  │              Modular Component System                  │  │
-│  │  Watchlist │ Portfolio │ Chart │ News │ Clock │ etc.  │  │
-│  └───────────────────────────────────────────────────────┘  │
-│                            │                                 │
-│  ┌─────────────────────────▼─────────────────────────────┐  │
-│  │                    Chat Interface                      │  │
-│  │        User conversations with Amy                     │  │
-│  └───────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-                             │
-                     HTTP/JSON API
-                             │
-┌─────────────────────────────▼───────────────────────────────┐
-│                     Backend (FastAPI)                        │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │                   Chat Endpoint                      │    │
-│  │  • Receives message + current UI state               │    │
-│  │  • Returns response + UI update instructions         │    │
-│  └─────────────────────────────────────────────────────┘    │
-│                            │                                 │
-│  ┌─────────────────────────▼─────────────────────────────┐  │
-│  │                  OpenAI Integration                    │  │
-│  │  • GPT-4 with structured JSON output                   │  │
-│  │  • System prompt with UI control capabilities          │  │
-│  │  • Context-aware UI recommendations                    │  │
-│  └───────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-```
+Amy understands natural language commands. Try these:
+
+### UI Customization
+- "Switch to dark theme" / "Switch to light theme"
+- "Hide the news panel"
+- "Show the calculator"
+- "Hide the clock and market overview"
+- "Show everything"
+
+### Trading Setups
+- "Set up for day trading" - Shows chart, positions, order panel, market overview
+- "I'm a beginner, simplify it" - Minimal interface with just essentials
+- "Show me the full workspace" - All components visible
+
+### Language
+- "Switch to Spanish" / "Cambia a español"
+- "Switch to French" / "Passe au français"
+- "Switch to Chinese" / "切换到中文"
+- "Switch to Arabic" / "التبديل إلى العربية"
+
+### Colors
+- "Change accent color to blue"
+- "Make it green"
+- "Use teal color"
+
+## 🔌 Deriv API Integration
+
+The app connects to Deriv's WebSocket API for:
+- Real-time price ticks for Volatility Indices
+- Candlestick chart data
+- Portfolio/positions (requires API token)
+- Account balance (requires API token)
+
+**To connect your Deriv account:**
+1. Get an API token from [Deriv API settings](https://app.deriv.com/account/api-token)
+2. Click "Connect API" in the header
+3. Paste your token
 
 ## 📁 Project Structure
 
 ```
-amy-ui-cursor/
+amy-ui-cursor-api/
 ├── backend/
-│   ├── main.py              # FastAPI application
-│   ├── requirements.txt     # Python dependencies
+│   ├── main.py           # FastAPI server with OpenAI integration
+│   ├── requirements.txt  # Python dependencies
 │   └── Dockerfile
 ├── frontend/
 │   ├── src/
-│   │   ├── App.tsx          # Main application
-│   │   ├── components/      # UI components
-│   │   │   ├── ChatPanel.tsx
+│   │   ├── components/   # React components
 │   │   │   ├── Header.tsx
-│   │   │   ├── Watchlist.tsx
-│   │   │   ├── Portfolio.tsx
 │   │   │   ├── PriceChart.tsx
+│   │   │   ├── Positions.tsx
 │   │   │   ├── OrderPanel.tsx
-│   │   │   ├── News.tsx
+│   │   │   ├── Watchlist.tsx
 │   │   │   ├── MarketOverview.tsx
+│   │   │   ├── News.tsx
+│   │   │   ├── Portfolio.tsx
 │   │   │   ├── WorldClock.tsx
-│   │   │   └── Calculator.tsx
+│   │   │   ├── Calculator.tsx
+│   │   │   └── ChatPanel.tsx
 │   │   ├── hooks/
-│   │   │   ├── useUIState.ts  # UI state management
-│   │   │   └── useChat.ts     # Chat API integration
-│   │   └── types.ts         # TypeScript interfaces
+│   │   │   ├── useDerivAPI.ts   # Deriv WebSocket hook
+│   │   │   ├── useChat.ts       # Chat API hook
+│   │   │   └── useUIState.ts    # UI state management
+│   │   ├── types.ts      # TypeScript types & translations
+│   │   ├── App.tsx       # Main app component
+│   │   └── index.css     # Tailwind + custom styles
 │   ├── package.json
 │   ├── Dockerfile
 │   └── nginx.conf
@@ -165,68 +146,39 @@ amy-ui-cursor/
 └── README.md
 ```
 
-## 🔌 API Reference
+## 🎨 UI Components
 
-### POST `/chat` or `/demo-chat`
+| Component | Description |
+|-----------|-------------|
+| **Chart** | Real-time candlestick chart using lightweight-charts |
+| **Positions** | Open trades with P/L tracking |
+| **Watchlist** | Favorite markets with live prices |
+| **Order Panel** | Trade execution with Accumulators |
+| **Market Overview** | Top gainers/losers and sentiment |
+| **Portfolio** | Account balance breakdown |
+| **News** | Financial news feed |
+| **World Clock** | Major market times |
+| **Calculator** | Position size calculator |
 
-Chat with Amy and receive UI update instructions.
+## 🔒 Environment Variables
 
-**Request:**
-```json
-{
-  "message": "Switch to dark mode",
-  "currentUIState": {
-    "theme": "light",
-    "language": "en",
-    "visibleComponents": ["watchlist", "portfolio", "chart"],
-    "layout": "standard",
-    "primaryColor": "#3b82f6",
-    "fontSize": "medium"
-  },
-  "conversationHistory": []
-}
-```
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `OPENAI_API_KEY` | OpenAI API key for Amy AI | No (demo mode works without it) |
 
-**Response:**
-```json
-{
-  "reply": "I've switched to dark mode for you. It's easier on the eyes!",
-  "shouldUpdateUI": true,
-  "uiUpdate": {
-    "theme": "dark",
-    "reasoning": "User requested dark mode"
-  }
-}
-```
+## 🚀 Future Enhancements
 
-## 🎯 Use Cases
+- [ ] Add more Deriv API features (place trades, trading history)
+- [ ] Voice commands for Amy
+- [ ] Persistent user preferences in database
+- [ ] More trading instrument types
+- [ ] Advanced AI reasoning about trading patterns
 
-1. **Accessibility**: Users with visual impairments can ask for larger text
-2. **Localization**: Automatically switch language based on conversation
-3. **Personalization**: Beginners get simplified views, pros get full dashboards
-4. **Context-Aware**: Asking about time shows the world clock
-5. **Preference Learning**: AI remembers and applies user preferences
+## 📄 License
 
-## 🔮 Future Possibilities
-
-- **Learning from behavior**: Track which components users interact with most
-- **Predictive UI**: Show relevant components before users ask
-- **Voice control**: Hands-free UI manipulation
-- **Cross-session memory**: Remember preferences across visits
-- **A/B testing**: AI experiments with layouts to optimize engagement
-- **Collaborative UI**: Share UI configurations between users
-
-## 🛠️ Technologies
-
-- **Frontend**: React, TypeScript, Vite, Tailwind CSS, Framer Motion, Recharts
-- **Backend**: Python, FastAPI, OpenAI API
-- **Deployment**: Docker, Docker Compose, Nginx
-
-## 📝 License
-
-MIT License - Feel free to use this POC as a starting point for your own AI-driven UI experiments!
+MIT License - Built as a POC for Deriv.com
 
 ---
 
-**Remember**: The best UI is one that adapts to you, not one you adapt to. Let Amy show you the future of user experience.
+Built with ❤️ by Amy AI for the future of adaptive trading interfaces.
 
