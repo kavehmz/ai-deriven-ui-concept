@@ -512,11 +512,11 @@ async def ai_mode_response(message: str, layout: LayoutState, history: list[dict
     
     try:
         response = openai_client.chat.completions.create(
-            model="gpt-4-turbo-preview",
+            model="gpt-5.1",
             messages=messages,
             response_format={"type": "json_object"},
-            temperature=0.7,
-            max_tokens=800,
+            max_completion_tokens=4000,
+            reasoning_effort="medium",
         )
         
         result = json.loads(response.choices[0].message.content)
