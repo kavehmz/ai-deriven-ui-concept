@@ -3,31 +3,25 @@
 @tailwind utilities;
 
 :root {
-  --accent-color: #ff444f;
-  --accent-hover: #e63e48;
-  --accent-glow: rgba(255, 68, 79, 0.3);
+  --accent-color: #FF444F;
+  --accent-hover: #E63E48;
 }
 
 * {
   box-sizing: border-box;
 }
 
-html {
-  font-size: 14px;
-}
-
 body {
   margin: 0;
-  padding: 0;
   font-family: 'IBM Plex Sans', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom scrollbar */
+/* Scrollbar styling */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -35,136 +29,78 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
+  background: #374151;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: #4B5563;
 }
 
-.light ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
+.dark ::-webkit-scrollbar-thumb {
+  background: #4B5563;
 }
 
-.light ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.2);
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #6B7280;
 }
 
-/* Accent color utilities */
-.accent-bg {
-  background-color: var(--accent-color);
+/* RTL support */
+[dir="rtl"] {
+  direction: rtl;
 }
 
-.accent-bg:hover {
-  background-color: var(--accent-hover);
+/* Component size classes */
+.component-small {
+  grid-column: span 1;
 }
 
-.accent-text {
-  color: var(--accent-color);
+.component-medium {
+  grid-column: span 2;
 }
 
-.accent-border {
-  border-color: var(--accent-color);
-}
-
-.accent-glow {
-  box-shadow: 0 0 20px var(--accent-glow);
-}
-
-/* Grid layout for components */
-.trading-grid {
-  display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  grid-auto-rows: minmax(180px, auto);
-  gap: 12px;
-  padding: 12px;
-  height: calc(100vh - 64px);
-  overflow-y: auto;
-}
-
-.grid-item {
-  background: #1a1a1a;
-  border-radius: 8px;
-  border: 1px solid #2a2a2a;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  min-height: 180px;
-}
-
-.light .grid-item {
-  background: #ffffff;
-  border-color: #e0e0e0;
-}
-
-/* Dynamic size classes */
-.grid-size-small {
+.component-large {
   grid-column: span 3;
 }
 
-.grid-size-medium {
+.component-full {
   grid-column: span 4;
 }
 
-.grid-size-large {
-  grid-column: span 6;
-  grid-row: span 2;
-}
-
-.grid-size-full {
-  grid-column: span 12;
-  grid-row: span 2;
-}
-
-/* Special chart sizing */
-.grid-item.component-chart.grid-size-large {
-  grid-column: span 8;
-  grid-row: span 2;
-}
-
-.grid-item.component-chart.grid-size-full {
-  grid-column: span 12;
-  grid-row: span 2;
-}
-
-/* Responsive grid */
-@media (max-width: 1400px) {
-  .grid-size-small {
-    grid-column: span 4;
+@media (max-width: 1280px) {
+  .component-large {
+    grid-column: span 2;
   }
-  .grid-size-medium {
-    grid-column: span 6;
-  }
-  .grid-size-large {
-    grid-column: span 12;
-  }
-  .grid-size-full {
-    grid-column: span 12;
-  }
-  .grid-item.component-chart.grid-size-large {
-    grid-column: span 12;
+  .component-full {
+    grid-column: span 3;
   }
 }
 
-@media (max-width: 900px) {
-  .trading-grid {
-    grid-template-columns: 1fr;
+@media (max-width: 1024px) {
+  .component-medium,
+  .component-large {
+    grid-column: span 2;
   }
-  .grid-size-small,
-  .grid-size-medium,
-  .grid-size-large,
-  .grid-size-full {
+  .component-full {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 768px) {
+  .component-small,
+  .component-medium,
+  .component-large,
+  .component-full {
     grid-column: span 1;
-    grid-row: span 1;
-  }
-  .grid-item.component-chart {
-    grid-row: span 2;
   }
 }
 
-/* Animation for component entry/exit */
-@keyframes slideIn {
+/* Animation classes */
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
   from {
     opacity: 0;
     transform: translateY(10px);
@@ -175,206 +111,100 @@ body {
   }
 }
 
-.grid-item {
-  animation: slideIn 0.3s ease-out;
+.slide-up {
+  animation: slideUp 0.3s ease-out;
 }
 
-/* Floating chat styles */
-.chat-floating {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 1000;
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.chat-bubble {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: var(--accent-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  transition: all 0.3s ease;
+/* Pulse animation for live indicators */
+.pulse-live {
+  animation: pulseLive 2s infinite;
 }
 
-.chat-bubble:hover {
-  transform: scale(1.05);
-  box-shadow: 0 6px 30px var(--accent-glow);
-}
-
-.chat-panel {
-  position: absolute;
-  bottom: 80px;
-  right: 0;
-  width: 380px;
-  max-height: 500px;
-  background: #1a1a1a;
-  border-radius: 16px;
-  border: 1px solid #2a2a2a;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.light .chat-panel {
-  background: #ffffff;
-  border-color: #e0e0e0;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-}
-
-/* Price change colors */
-.price-up {
-  color: #00c853;
-}
-
-.price-down {
-  color: #ff444f;
-}
-
-/* Pulse animation for live prices */
-@keyframes pricePulse {
+@keyframes pulseLive {
   0%, 100% {
     opacity: 1;
   }
   50% {
-    opacity: 0.7;
+    opacity: 0.5;
   }
 }
 
-.price-pulse {
-  animation: pricePulse 1s ease-in-out;
+/* Card hover effect */
+.card-hover {
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
-/* Card header */
-.card-header {
-  padding: 12px 16px;
-  border-bottom: 1px solid #2a2a2a;
-  font-weight: 600;
-  font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.2);
 }
 
-.light .card-header {
-  border-color: #e0e0e0;
+/* Chat bubble bounce */
+.bounce {
+  animation: bounce 0.5s ease;
 }
 
-.card-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px;
+@keyframes bounce {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
 }
 
-/* RTL support for Arabic */
-[dir="rtl"] .trading-grid {
-  direction: rtl;
+/* Profit/Loss colors */
+.profit {
+  color: #00D4AA;
 }
 
-[dir="rtl"] .chat-floating {
-  right: auto;
-  left: 24px;
+.loss {
+  color: #FF444F;
 }
 
-[dir="rtl"] .chat-panel {
-  right: auto;
-  left: 0;
-}
-
-/* Button styles */
-.btn-primary {
-  background: var(--accent-color);
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-primary:hover {
-  background: var(--accent-hover);
-  transform: translateY(-1px);
-}
-
-.btn-primary:active {
-  transform: translateY(0);
-}
-
-/* Input styles */
-.input-field {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid #2a2a2a;
-  border-radius: 6px;
-  padding: 10px 14px;
-  color: inherit;
-  font-size: 0.95rem;
-  width: 100%;
-  transition: border-color 0.2s ease;
-}
-
-.input-field:focus {
-  outline: none;
-  border-color: var(--accent-color);
-}
-
-.light .input-field {
-  background: rgba(0, 0, 0, 0.03);
-  border-color: #e0e0e0;
-}
-
-/* Amy avatar glow effect */
-.amy-avatar {
+/* Chart container */
+.chart-container {
   position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 200px;
 }
 
-.amy-avatar::before {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border-radius: 50%;
-  background: linear-gradient(45deg, var(--accent-color), #ff6b72);
-  opacity: 0.5;
-  filter: blur(6px);
-  z-index: -1;
+/* Grid layout for components */
+.components-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-auto-flow: dense;
+  gap: 1rem;
+  padding: 1rem;
 }
 
-/* Typing indicator */
-.typing-indicator {
-  display: flex;
-  gap: 4px;
-  padding: 8px;
-}
-
-.typing-indicator span {
-  width: 8px;
-  height: 8px;
-  background: var(--accent-color);
-  border-radius: 50%;
-  animation: typing 1.4s infinite ease-in-out;
-}
-
-.typing-indicator span:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.typing-indicator span:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes typing {
-  0%, 60%, 100% {
-    transform: translateY(0);
-    opacity: 0.4;
+@media (max-width: 1280px) {
+  .components-grid {
+    grid-template-columns: repeat(3, 1fr);
   }
-  30% {
-    transform: translateY(-8px);
-    opacity: 1;
+}
+
+@media (max-width: 1024px) {
+  .components-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .components-grid {
+    grid-template-columns: 1fr;
   }
 }
 

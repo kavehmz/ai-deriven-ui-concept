@@ -1,339 +1,237 @@
-import { useState, useCallback, useEffect } from 'react';
-import { UIState, ComponentsConfig, ComponentConfig, ComponentSize, Language, UIChanges } from '../types';
+import { useState, useEffect, useCallback } from 'react';
+import { LayoutState, ComponentState, UIChange, ComponentId, PRESETS, LANGUAGES } from '../types';
 
 const STORAGE_KEY = 'amy-ui-state';
 
-// Default component configurations
-const defaultComponents: ComponentsConfig = {
-  chart: { visible: true, size: 'large', order: 2 },
-  positions: { visible: true, size: 'medium', order: 0 },
-  watchlist: { visible: true, size: 'medium', order: 1 },
-  orderPanel: { visible: true, size: 'medium', order: 3 },
-  marketOverview: { visible: true, size: 'small', order: 4 },
-  news: { visible: true, size: 'small', order: 6 },
-  portfolio: { visible: true, size: 'small', order: 5 },
-  clock: { visible: true, size: 'small', order: 7 },
-  calculator: { visible: false, size: 'small', order: 8 },
-};
-
-// Layout presets
-const layoutPresets: Record<string, Partial<ComponentsConfig>> = {
-  default: defaultComponents,
-  trading: {
+const DEFAULT_LAYOUT: LayoutState = {
+  components: {
     chart: { visible: true, size: 'large', order: 0 },
-    positions: { visible: true, size: 'medium', order: 1 },
-    orderPanel: { visible: true, size: 'medium', order: 2 },
+    orderPanel: { visible: true, size: 'medium', order: 1 },
+    positions: { visible: true, size: 'medium', order: 2 },
     watchlist: { visible: true, size: 'small', order: 3 },
-    marketOverview: { visible: true, size: 'small', order: 4 },
-    portfolio: { visible: false, size: 'small', order: 5 },
-    news: { visible: false, size: 'small', order: 6 },
-    clock: { visible: true, size: 'small', order: 7 },
-    calculator: { visible: true, size: 'small', order: 8 },
-  },
-  minimal: {
-    chart: { visible: true, size: 'full', order: 0 },
-    positions: { visible: false, size: 'medium', order: 1 },
-    orderPanel: { visible: true, size: 'medium', order: 2 },
-    watchlist: { visible: false, size: 'small', order: 3 },
     marketOverview: { visible: false, size: 'small', order: 4 },
-    portfolio: { visible: true, size: 'small', order: 5 },
-    news: { visible: false, size: 'small', order: 6 },
-    clock: { visible: false, size: 'small', order: 7 },
+    news: { visible: false, size: 'small', order: 5 },
+    portfolio: { visible: true, size: 'small', order: 6 },
+    clock: { visible: true, size: 'small', order: 7 },
     calculator: { visible: false, size: 'small', order: 8 },
   },
-  analysis: {
-    chart: { visible: true, size: 'large', order: 0 },
-    positions: { visible: true, size: 'small', order: 3 },
-    watchlist: { visible: true, size: 'medium', order: 1 },
-    orderPanel: { visible: false, size: 'small', order: 7 },
-    marketOverview: { visible: true, size: 'medium', order: 2 },
-    portfolio: { visible: true, size: 'small', order: 4 },
-    news: { visible: true, size: 'medium', order: 5 },
-    clock: { visible: true, size: 'small', order: 6 },
-    calculator: { visible: true, size: 'small', order: 8 },
-  },
-  monitoring: {
-    chart: { visible: true, size: 'medium', order: 0 },
-    positions: { visible: true, size: 'large', order: 1 },
-    watchlist: { visible: true, size: 'medium', order: 2 },
-    orderPanel: { visible: false, size: 'small', order: 7 },
-    marketOverview: { visible: true, size: 'medium', order: 3 },
-    portfolio: { visible: true, size: 'medium', order: 4 },
-    news: { visible: true, size: 'small', order: 5 },
-    clock: { visible: true, size: 'small', order: 6 },
-    calculator: { visible: false, size: 'small', order: 8 },
-  },
-};
-
-const defaultUIState: UIState = {
-  components: defaultComponents,
   theme: 'dark',
   language: 'en',
-  accentColor: '#ff444f',
+  accentColor: '#FF444F',
+  healthIssues: [],
 };
 
-export interface UseUIStateReturn {
-  uiState: UIState;
-  setComponentVisibility: (key: keyof ComponentsConfig, visible: boolean) => void;
-  setComponentSize: (key: keyof ComponentsConfig, size: ComponentSize) => void;
-  setComponentOrder: (key: keyof ComponentsConfig, order: number) => void;
-  moveComponent: (key: keyof ComponentsConfig, direction: 'left' | 'right' | 'up' | 'down') => void;
-  setTheme: (theme: 'dark' | 'light') => void;
-  setLanguage: (language: Language) => void;
-  setAccentColor: (color: string) => void;
-  applyUIChanges: (changes: UIChanges) => void;
-  applyLayoutPreset: (preset: string) => void;
-  resetUI: () => void;
-  getVisibleComponentsSorted: () => { key: keyof ComponentsConfig; config: ComponentConfig }[];
-  getLayoutDescription: () => string;
-}
-
-export function useUIState(): UseUIStateReturn {
-  const [uiState, setUIState] = useState<UIState>(() => {
+export function useUIState() {
+  const [layout, setLayout] = useState<LayoutState>(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
         // Merge with defaults to handle new components
-        const mergedComponents = { ...defaultComponents };
-        if (parsed.components) {
-          for (const key of Object.keys(defaultComponents) as (keyof ComponentsConfig)[]) {
-            if (parsed.components[key]) {
-              mergedComponents[key] = {
-                ...defaultComponents[key],
-                ...parsed.components[key]
-              };
-            }
-          }
-        }
         return {
-          ...defaultUIState,
+          ...DEFAULT_LAYOUT,
           ...parsed,
-          components: mergedComponents
+          components: {
+            ...DEFAULT_LAYOUT.components,
+            ...parsed.components,
+          },
         };
       }
     } catch (e) {
-      console.error('Failed to load UI state:', e);
+      console.error('Failed to load layout state:', e);
     }
-    return defaultUIState;
+    return DEFAULT_LAYOUT;
   });
 
-  // Persist to localStorage
+  // Save to localStorage whenever layout changes
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(uiState));
-  }, [uiState]);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(layout));
+    } catch (e) {
+      console.error('Failed to save layout state:', e);
+    }
+  }, [layout]);
 
   // Apply theme to document
   useEffect(() => {
-    document.documentElement.classList.remove('dark', 'light');
-    document.documentElement.classList.add(uiState.theme);
-    document.documentElement.dir = uiState.language === 'ar' ? 'rtl' : 'ltr';
-    document.documentElement.lang = uiState.language;
-  }, [uiState.theme, uiState.language]);
+    document.documentElement.classList.toggle('dark', layout.theme === 'dark');
+  }, [layout.theme]);
+
+  // Apply language direction
+  useEffect(() => {
+    const langConfig = LANGUAGES[layout.language];
+    if (langConfig) {
+      document.documentElement.dir = langConfig.dir;
+      document.documentElement.lang = layout.language;
+    }
+  }, [layout.language]);
 
   // Apply accent color
   useEffect(() => {
-    document.documentElement.style.setProperty('--accent-color', uiState.accentColor);
-    const hex = uiState.accentColor.replace('#', '');
-    const r = Math.max(0, parseInt(hex.substr(0, 2), 16) - 20);
-    const g = Math.max(0, parseInt(hex.substr(2, 2), 16) - 20);
-    const b = Math.max(0, parseInt(hex.substr(4, 2), 16) - 20);
-    const hoverColor = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    document.documentElement.style.setProperty('--accent-color', layout.accentColor);
+    // Calculate hover color (slightly darker)
+    const r = parseInt(layout.accentColor.slice(1, 3), 16);
+    const g = parseInt(layout.accentColor.slice(3, 5), 16);
+    const b = parseInt(layout.accentColor.slice(5, 7), 16);
+    const hoverColor = `rgb(${Math.max(0, r - 20)}, ${Math.max(0, g - 20)}, ${Math.max(0, b - 20)})`;
     document.documentElement.style.setProperty('--accent-hover', hoverColor);
-    document.documentElement.style.setProperty('--accent-glow', `${uiState.accentColor}4d`);
-  }, [uiState.accentColor]);
+  }, [layout.accentColor]);
 
-  const setComponentVisibility = useCallback((key: keyof ComponentsConfig, visible: boolean) => {
-    setUIState(prev => ({
-      ...prev,
-      components: {
-        ...prev.components,
-        [key]: { ...prev.components[key], visible }
-      }
-    }));
-  }, []);
+  const applyUIChanges = useCallback((changes: UIChange[]) => {
+    setLayout((prev) => {
+      let newLayout = { ...prev };
+      
+      for (const change of changes) {
+        // Apply preset
+        if (change.preset && PRESETS[change.preset]) {
+          const preset = PRESETS[change.preset];
+          const newComponents = { ...newLayout.components };
+          
+          for (const [compId, settings] of Object.entries(preset.components)) {
+            if (newComponents[compId]) {
+              newComponents[compId] = {
+                ...newComponents[compId],
+                visible: settings.visible,
+                size: settings.size,
+              };
+            }
+          }
+          
+          newLayout = { ...newLayout, components: newComponents };
+          continue;
+        }
 
-  const setComponentSize = useCallback((key: keyof ComponentsConfig, size: ComponentSize) => {
-    setUIState(prev => ({
-      ...prev,
-      components: {
-        ...prev.components,
-        [key]: { ...prev.components[key], size }
-      }
-    }));
-  }, []);
+        // Apply theme change
+        if (change.theme) {
+          newLayout = { ...newLayout, theme: change.theme };
+        }
 
-  const setComponentOrder = useCallback((key: keyof ComponentsConfig, order: number) => {
-    setUIState(prev => ({
-      ...prev,
-      components: {
-        ...prev.components,
-        [key]: { ...prev.components[key], order }
-      }
-    }));
-  }, []);
+        // Apply language change
+        if (change.language) {
+          newLayout = { ...newLayout, language: change.language };
+        }
 
-  const moveComponent = useCallback((key: keyof ComponentsConfig, direction: 'left' | 'right' | 'up' | 'down') => {
-    setUIState(prev => {
-      const currentOrder = prev.components[key].order;
-      const components = { ...prev.components };
-      
-      // Get sorted visible components
-      const sorted = Object.entries(components)
-        .filter(([, config]) => config.visible)
-        .sort((a, b) => a[1].order - b[1].order);
-      
-      const currentIndex = sorted.findIndex(([k]) => k === key);
-      if (currentIndex === -1) return prev;
-      
-      let targetIndex: number;
-      if (direction === 'left' || direction === 'up') {
-        targetIndex = Math.max(0, currentIndex - 1);
-      } else {
-        targetIndex = Math.min(sorted.length - 1, currentIndex + 1);
+        // Apply accent color change
+        if (change.accentColor) {
+          newLayout = { ...newLayout, accentColor: change.accentColor };
+        }
+
+        // Apply component-specific changes
+        if (change.component && newLayout.components[change.component]) {
+          const comp = newLayout.components[change.component];
+          
+          switch (change.action) {
+            case 'show':
+              newLayout = {
+                ...newLayout,
+                components: {
+                  ...newLayout.components,
+                  [change.component]: { ...comp, visible: true },
+                },
+              };
+              break;
+            case 'hide':
+              newLayout = {
+                ...newLayout,
+                components: {
+                  ...newLayout.components,
+                  [change.component]: { ...comp, visible: false },
+                },
+              };
+              break;
+            case 'resize':
+              if (change.value && ['small', 'medium', 'large', 'full'].includes(change.value)) {
+                newLayout = {
+                  ...newLayout,
+                  components: {
+                    ...newLayout.components,
+                    [change.component]: { 
+                      ...comp, 
+                      size: change.value as ComponentState['size'],
+                    },
+                  },
+                };
+              }
+              break;
+            case 'reorder':
+              if (change.value) {
+                const newOrder = parseInt(change.value);
+                if (!isNaN(newOrder)) {
+                  newLayout = {
+                    ...newLayout,
+                    components: {
+                      ...newLayout.components,
+                      [change.component]: { ...comp, order: newOrder },
+                    },
+                  };
+                }
+              }
+              break;
+          }
+        }
       }
-      
-      if (targetIndex === currentIndex) return prev;
-      
-      // Swap orders
-      const targetKey = sorted[targetIndex][0] as keyof ComponentsConfig;
-      const targetOrder = components[targetKey].order;
-      
-      components[key] = { ...components[key], order: targetOrder };
-      components[targetKey] = { ...components[targetKey], order: currentOrder };
-      
-      return { ...prev, components };
+
+      return newLayout;
     });
+  }, []);
+
+  const toggleComponent = useCallback((componentId: ComponentId) => {
+    setLayout((prev) => ({
+      ...prev,
+      components: {
+        ...prev.components,
+        [componentId]: {
+          ...prev.components[componentId],
+          visible: !prev.components[componentId].visible,
+        },
+      },
+    }));
   }, []);
 
   const setTheme = useCallback((theme: 'dark' | 'light') => {
-    setUIState(prev => ({ ...prev, theme }));
+    setLayout((prev) => ({ ...prev, theme }));
   }, []);
 
-  const setLanguage = useCallback((language: Language) => {
-    setUIState(prev => ({ ...prev, language }));
+  const setLanguage = useCallback((language: string) => {
+    setLayout((prev) => ({ ...prev, language }));
   }, []);
 
-  const setAccentColor = useCallback((color: string) => {
-    setUIState(prev => ({ ...prev, accentColor: color }));
+  const setAccentColor = useCallback((accentColor: string) => {
+    setLayout((prev) => ({ ...prev, accentColor }));
   }, []);
 
-  const applyLayoutPreset = useCallback((preset: string) => {
-    const presetConfig = layoutPresets[preset];
-    if (presetConfig) {
-      setUIState(prev => ({
-        ...prev,
-        components: {
-          ...prev.components,
-          ...presetConfig
-        } as ComponentsConfig
-      }));
-    }
-  }, []);
-
-  const applyUIChanges = useCallback((changes: UIChanges) => {
-    setUIState(prev => {
-      const newState = { ...prev };
-      
-      // Apply layout preset first if specified
-      if (changes.layout && layoutPresets[changes.layout]) {
-        newState.components = {
-          ...prev.components,
-          ...layoutPresets[changes.layout]
-        } as ComponentsConfig;
-      }
-      
-      // Apply individual component changes
-      if (changes.components) {
-        const updatedComponents = { ...newState.components };
-        
-        for (const [key, value] of Object.entries(changes.components)) {
-          const componentKey = key as keyof ComponentsConfig;
-          if (typeof value === 'boolean') {
-            // Simple visibility toggle
-            updatedComponents[componentKey] = {
-              ...updatedComponents[componentKey],
-              visible: value
-            };
-          } else if (value && typeof value === 'object') {
-            // Full config update
-            updatedComponents[componentKey] = {
-              ...updatedComponents[componentKey],
-              ...value
-            };
-          }
-        }
-        
-        newState.components = updatedComponents;
-      }
-      
-      if (changes.theme) newState.theme = changes.theme;
-      if (changes.language) newState.language = changes.language;
-      if (changes.accentColor) newState.accentColor = changes.accentColor;
-      
-      return newState;
+  const reportHealthIssue = useCallback((issue: string) => {
+    setLayout((prev) => {
+      if (prev.healthIssues.includes(issue)) return prev;
+      return { ...prev, healthIssues: [...prev.healthIssues, issue] };
     });
   }, []);
 
-  const resetUI = useCallback(() => {
-    setUIState(defaultUIState);
-    localStorage.removeItem(STORAGE_KEY);
+  const clearHealthIssues = useCallback(() => {
+    setLayout((prev) => ({ ...prev, healthIssues: [] }));
   }, []);
 
-  const getVisibleComponentsSorted = useCallback(() => {
-    return Object.entries(uiState.components)
-      .filter(([, config]) => config.visible)
-      .sort((a, b) => a[1].order - b[1].order)
-      .map(([key, config]) => ({ key: key as keyof ComponentsConfig, config }));
-  }, [uiState.components]);
+  const resetLayout = useCallback(() => {
+    setLayout(DEFAULT_LAYOUT);
+  }, []);
 
-  // Generate human-readable layout description for AI context
-  const getLayoutDescription = useCallback(() => {
-    const sorted = getVisibleComponentsSorted();
-    const sizeNames: Record<ComponentSize, string> = {
-      small: 'small (1/4 width)',
-      medium: 'medium (1/2 width)', 
-      large: 'large (3/4 width)',
-      full: 'full width'
-    };
-    
-    const componentNames: Record<string, string> = {
-      chart: 'Price Chart',
-      positions: 'Open Positions',
-      watchlist: 'Watchlist',
-      orderPanel: 'Order Panel',
-      marketOverview: 'Market Overview',
-      news: 'News Feed',
-      portfolio: 'Portfolio',
-      clock: 'World Clock',
-      calculator: 'Calculator'
-    };
-    
-    const visible = sorted.map(({ key, config }) => 
-      `${componentNames[key as string]} (${sizeNames[config.size as ComponentSize]})`
-    ).join(', ');
-    
-    const hidden = Object.entries(uiState.components)
-      .filter(([, config]) => !config.visible)
-      .map(([key]) => componentNames[key as string])
-      .join(', ');
-    
-    return `Visible components (in order): ${visible || 'none'}. Hidden: ${hidden || 'none'}. Theme: ${uiState.theme}. Language: ${uiState.language}.`;
-  }, [uiState, getVisibleComponentsSorted]);
+  // Get visible components sorted by order
+  const visibleComponents = Object.entries(layout.components)
+    .filter(([, state]) => state.visible)
+    .sort(([, a], [, b]) => a.order - b.order)
+    .map(([id]) => id as ComponentId);
 
   return {
-    uiState,
-    setComponentVisibility,
-    setComponentSize,
-    setComponentOrder,
-    moveComponent,
+    layout,
+    visibleComponents,
+    applyUIChanges,
+    toggleComponent,
     setTheme,
     setLanguage,
     setAccentColor,
-    applyUIChanges,
-    applyLayoutPreset,
-    resetUI,
-    getVisibleComponentsSorted,
-    getLayoutDescription
+    reportHealthIssue,
+    clearHealthIssues,
+    resetLayout,
   };
 }
+

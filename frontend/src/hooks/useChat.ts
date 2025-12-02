@@ -1,141 +1,134 @@
 import { useState, useCallback } from 'react';
-import { ChatMessage, ChatResponse, UIState, ComponentSize } from '../types';
+import { ChatMessage, ChatResponse, LayoutState, UIChange } from '../types';
 
-const API_BASE = import.meta.env.DEV ? 'http://localhost:8000' : '/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-// Generate layout description for AI context
-function generateLayoutDescription(ui: UIState): string {
-  const sizeNames: Record<ComponentSize, string> = {
-    small: 'small (1/4 width)',
-    medium: 'medium (1/2 width)', 
-    large: 'large (3/4 width)',
-    full: 'full width'
-  };
-  
-  const componentNames: Record<string, string> = {
-    chart: 'Price Chart',
-    positions: 'Open Positions',
-    watchlist: 'Watchlist',
-    orderPanel: 'Order Panel',
-    marketOverview: 'Market Overview',
-    news: 'News Feed',
-    portfolio: 'Portfolio',
-    clock: 'World Clock',
-    calculator: 'Calculator'
-  };
-
-  const sorted = Object.entries(ui.components)
-    .filter(([, config]) => config.visible)
-    .sort((a, b) => a[1].order - b[1].order);
-  
-  const visible = sorted.map(([key, config]) => 
-    `${componentNames[key]} (${sizeNames[config.size as ComponentSize]}, position ${config.order})`
-  ).join('; ');
-  
-  const hidden = Object.entries(ui.components)
-    .filter(([, config]) => !config.visible)
-    .map(([key]) => componentNames[key])
-    .join(', ');
-  
-  return `CURRENT LAYOUT - Visible (in order): ${visible || 'none'}. Hidden: ${hidden || 'none'}. Theme: ${ui.theme}. Language: ${ui.language}. Accent color: ${ui.accentColor}.`;
+interface UseChatOptions {
+  onUIChanges: (changes: UIChange[]) => void;
+  getLayoutState: () => LayoutState;
 }
 
-export interface UseChatReturn {
-  messages: ChatMessage[];
-  isLoading: boolean;
-  sendMessage: (message: string, currentUI: UIState) => Promise<ChatResponse | null>;
-  clearMessages: () => void;
-}
-
-export function useChat(): UseChatReturn {
+export function useChat({ onUIChanges, getLayoutState }: UseChatOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
-      id: 'welcome',
       role: 'assistant',
-      content: "Hi! I'm Amy, your AI trading assistant. I can help customize your trading interface. Try asking me to:\n\n• \"Switch to dark/light theme\"\n• \"Hide the news panel\"\n• \"Show me a simple layout\"\n• \"Set up for day trading\"\n• \"Change language to Spanish\"\n\nHow can I help you today?",
-      timestamp: new Date()
-    }
+      content: "Hi! I'm Amy, your trading assistant. I can help customize your workspace - tell me what you'd like to see or hide, change themes, or set up layouts for different trading styles. What would you like to do?",
+      timestamp: new Date(),
+    },
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [hasNewMessage, setHasNewMessage] = useState(false);
 
-  const sendMessage = useCallback(async (message: string, currentUI: UIState): Promise<ChatResponse | null> => {
-    if (!message.trim()) return null;
+  const sendMessage = useCallback(
+    async (content: string) => {
+      if (!content.trim() || isLoading) return;
 
-    // Add user message
-    const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: message,
-      timestamp: new Date()
-    };
-    setMessages(prev => [...prev, userMessage]);
-    setIsLoading(true);
+      // Add user message
+      const userMessage: ChatMessage = {
+        role: 'user',
+        content: content.trim(),
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, userMessage]);
+      setIsLoading(true);
 
-    try {
-      const layoutDescription = generateLayoutDescription(currentUI);
-      
-      const response = await fetch(`${API_BASE}/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message,
-          currentUI,
-          layoutDescription
-        })
-      });
+      try {
+        const layoutState = getLayoutState();
+        const conversationHistory = messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        }));
 
-      if (!response.ok) {
-        throw new Error('Failed to get response');
+        const response = await fetch(`${API_URL}/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: content.trim(),
+            layoutState,
+            conversationHistory,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to get response');
+        }
+
+        const data: ChatResponse = await response.json();
+
+        // Add assistant message
+        const assistantMessage: ChatMessage = {
+          role: 'assistant',
+          content: data.message,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+
+        // Apply UI changes
+        if (data.uiChanges && data.uiChanges.length > 0) {
+          onUIChanges(data.uiChanges);
+        }
+
+        // Show notification if chat is closed
+        if (!isOpen) {
+          setHasNewMessage(true);
+        }
+      } catch (error) {
+        console.error('Chat error:', error);
+        
+        // Add error message
+        const errorMessage: ChatMessage = {
+          role: 'assistant',
+          content: "I'm having trouble connecting right now. Please try again in a moment.",
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      } finally {
+        setIsLoading(false);
       }
+    },
+    [isLoading, messages, getLayoutState, onUIChanges, isOpen]
+  );
 
-      const data: ChatResponse = await response.json();
-
-      // Add assistant message
-      const assistantMessage: ChatMessage = {
-        id: `assistant-${Date.now()}`,
-        role: 'assistant',
-        content: data.message,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, assistantMessage]);
-
-      return data;
-    } catch (error) {
-      console.error('Chat error:', error);
-      
-      // Add error message
-      const errorMessage: ChatMessage = {
-        id: `error-${Date.now()}`,
-        role: 'assistant',
-        content: "I'm having trouble connecting to the server. Please make sure the backend is running. In the meantime, try these commands:\n\n• \"show calculator\"\n• \"hide news\"\n• \"switch to light theme\"",
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, errorMessage]);
-      
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
+  const openChat = useCallback(() => {
+    setIsOpen(true);
+    setHasNewMessage(false);
   }, []);
 
-  const clearMessages = useCallback(() => {
+  const closeChat = useCallback(() => {
+    setIsOpen(false);
+  }, []);
+
+  const toggleChat = useCallback(() => {
+    if (isOpen) {
+      closeChat();
+    } else {
+      openChat();
+    }
+  }, [isOpen, openChat, closeChat]);
+
+  const clearHistory = useCallback(() => {
     setMessages([
       {
-        id: 'welcome',
         role: 'assistant',
-        content: "Chat cleared! How can I help you customize your trading interface?",
-        timestamp: new Date()
-      }
+        content: "Hi! I'm Amy, your trading assistant. I can help customize your workspace - tell me what you'd like to see or hide, change themes, or set up layouts for different trading styles. What would you like to do?",
+        timestamp: new Date(),
+      },
     ]);
   }, []);
 
   return {
     messages,
     isLoading,
+    isOpen,
+    hasNewMessage,
     sendMessage,
-    clearMessages
+    openChat,
+    closeChat,
+    toggleChat,
+    clearHistory,
   };
 }
 

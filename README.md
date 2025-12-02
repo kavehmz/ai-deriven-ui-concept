@@ -1,184 +1,175 @@
-# Amy AI Trading Platform POC
+# Amy AI - Dynamic UI Trading Platform
 
-A proof-of-concept demonstrating how AI can dynamically control and customize a trading UI based on user interactions. Built for Deriv's trading platform.
+An AI-powered trading platform where the user interface adapts to your needs through natural conversation. Chat with Amy to customize your workspace in real-time.
 
-![Amy Trading Platform](images/shot1.png)
+![Amy AI Trading Platform](images/shot1.png)
 
-## 🚀 Features
+## Features
 
-- **AI-Driven UI Customization**: Chat with Amy to show/hide components, change themes, switch languages
-- **Real-time Deriv API Integration**: Live market data via WebSocket from api.deriv.com
-- **Floating Chat Interface**: Non-intrusive AI assistant that doesn't take up dashboard space
-- **Dynamic Layout**: CSS Grid that automatically adjusts when components are hidden
-- **Multi-language Support**: EN, ES, FR, DE, ZH, AR, JA, PT, RU with RTL support for Arabic
-- **Customizable Themes**: Dark/Light modes with customizable accent colors
+### 🤖 AI-Controlled UI
+- **Dynamic Layout**: Show, hide, resize, and reorder components through chat
+- **Layout Presets**: Trading, minimal, analysis, and monitoring modes
+- **Theme & Language**: Switch themes and languages including RTL support for Arabic
+- **Context-Aware**: Amy knows your current layout and gives intelligent responses
 
-## 🏗️ Architecture
+### 📈 Real Trading
+- **Live Market Data**: Real-time prices from Deriv API
+- **Candlestick Charts**: Interactive charts with lightweight-charts
+- **Rise/Fall Trading**: Execute binary options trades
+- **Position Tracking**: Live P/L updates on open positions
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   React Frontend │ ←→ │  Python Backend  │ ←→ │   OpenAI API    │
-│   (Vite + TS)   │     │    (FastAPI)     │     │   (GPT-4o)      │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-         ↓
-┌─────────────────┐
-│   Deriv API     │
-│   (WebSocket)   │
-└─────────────────┘
-```
+### 🎨 Beautiful Interface
+- **Modern Design**: Clean, professional trading UI
+- **Dark/Light Themes**: Easy on the eyes, day or night
+- **Responsive Layout**: Adapts to different screen sizes
+- **Smooth Animations**: Polished user experience
 
-## 🛠️ Quick Start
+## Quick Start
 
-### Using Docker Compose (Recommended)
+### Using Docker (Recommended)
 
-1. **Clone and setup environment:**
-   ```bash
-   cd amy-ui-cursor-api
-   
-   # Optional: Set your OpenAI API key for full AI features
-   export OPENAI_API_KEY=your_api_key_here
-   ```
-
-2. **Start the application:**
-   ```bash
-   docker-compose up --build
-   ```
-
-3. **Access the app:**
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:8000
-
-### Manual Development Setup
-
-**Backend:**
 ```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-
-# Optional: Set OpenAI API key
-export OPENAI_API_KEY=your_api_key_here
-
-uvicorn main:app --reload --port 8000
+docker-compose up --build
 ```
 
-**Frontend:**
+Then open:
+- **Frontend**: http://localhost:3000
+- **Backend**: http://localhost:8000
+
+### Enable AI Mode (Optional)
+
+Set your OpenAI API key for full AI capabilities:
+
+```bash
+OPENAI_API_KEY=your-key-here docker-compose up --build
+```
+
+Without the key, Amy still works in demo mode with pattern matching.
+
+## Usage
+
+### Chat with Amy
+
+Click the chat bubble in the bottom-right corner and try:
+
+- "Hide the news panel"
+- "Make the chart bigger"
+- "Switch to dark mode"
+- "Set up for day trading"
+- "What's my current layout?"
+- "Change the accent color to blue"
+- "Switch to Spanish"
+
+### Connect Your Deriv Account
+
+1. Click "Connect" in the header
+2. Enter your Deriv API token (get one from [Deriv API Settings](https://app.deriv.com/account/api-token))
+3. Start trading with real money!
+
+**Note**: Without a token, you can still view live prices and charts.
+
+## Components
+
+| Component | Description |
+|-----------|-------------|
+| **Chart** | Real-time candlestick chart |
+| **Order Panel** | Rise/Fall contract trading |
+| **Positions** | Open positions with live P/L |
+| **Watchlist** | Favorite symbols with prices |
+| **Market Overview** | Market summary and trends |
+| **News** | Market news and updates |
+| **Portfolio** | Account balance and summary |
+| **Clock** | World clock with market hours |
+| **Calculator** | Trading calculator |
+
+## Layout Presets
+
+- **Trading**: Chart + Order Panel + Positions + Clock
+- **Minimal**: Just Chart + Order Panel
+- **Analysis**: Chart + Watchlist + News + Market Overview
+- **Monitoring**: Positions (large) + Chart + Portfolio
+
+## Tech Stack
+
+### Frontend
+- React 18 with TypeScript
+- Tailwind CSS for styling
+- lightweight-charts for trading charts
+- Lucide React for icons
+
+### Backend
+- Python FastAPI
+- OpenAI GPT-4 (optional)
+- Pattern-matching fallback for demo mode
+
+### Infrastructure
+- Docker & Docker Compose
+- Nginx for production frontend
+
+## Development
+
+### Frontend
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-## 💬 Talking to Amy
+### Backend
 
-Amy understands natural language commands. Try these:
-
-### UI Customization
-- "Switch to dark theme" / "Switch to light theme"
-- "Hide the news panel"
-- "Show the calculator"
-- "Hide the clock and market overview"
-- "Show everything"
-
-### Trading Setups
-- "Set up for day trading" - Shows chart, positions, order panel, market overview
-- "I'm a beginner, simplify it" - Minimal interface with just essentials
-- "Show me the full workspace" - All components visible
-
-### Language
-- "Switch to Spanish" / "Cambia a español"
-- "Switch to French" / "Passe au français"
-- "Switch to Chinese" / "切换到中文"
-- "Switch to Arabic" / "التبديل إلى العربية"
-
-### Colors
-- "Change accent color to blue"
-- "Make it green"
-- "Use teal color"
-
-## 🔌 Deriv API Integration
-
-The app connects to Deriv's WebSocket API for:
-- Real-time price ticks for Volatility Indices
-- Candlestick chart data
-- Portfolio/positions (requires API token)
-- Account balance (requires API token)
-
-**To connect your Deriv account:**
-1. Get an API token from [Deriv API settings](https://app.deriv.com/account/api-token)
-2. Click "Connect API" in the header
-3. Paste your token
-
-## 📁 Project Structure
-
-```
-amy-ui-cursor-api/
-├── backend/
-│   ├── main.py           # FastAPI server with OpenAI integration
-│   ├── requirements.txt  # Python dependencies
-│   └── Dockerfile
-├── frontend/
-│   ├── src/
-│   │   ├── components/   # React components
-│   │   │   ├── Header.tsx
-│   │   │   ├── PriceChart.tsx
-│   │   │   ├── Positions.tsx
-│   │   │   ├── OrderPanel.tsx
-│   │   │   ├── Watchlist.tsx
-│   │   │   ├── MarketOverview.tsx
-│   │   │   ├── News.tsx
-│   │   │   ├── Portfolio.tsx
-│   │   │   ├── WorldClock.tsx
-│   │   │   ├── Calculator.tsx
-│   │   │   └── ChatPanel.tsx
-│   │   ├── hooks/
-│   │   │   ├── useDerivAPI.ts   # Deriv WebSocket hook
-│   │   │   ├── useChat.ts       # Chat API hook
-│   │   │   └── useUIState.ts    # UI state management
-│   │   ├── types.ts      # TypeScript types & translations
-│   │   ├── App.tsx       # Main app component
-│   │   └── index.css     # Tailwind + custom styles
-│   ├── package.json
-│   ├── Dockerfile
-│   └── nginx.conf
-├── docker-compose.yml
-└── README.md
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload
 ```
 
-## 🎨 UI Components
+## API Endpoints
 
-| Component | Description |
-|-----------|-------------|
-| **Chart** | Real-time candlestick chart using lightweight-charts |
-| **Positions** | Open trades with P/L tracking |
-| **Watchlist** | Favorite markets with live prices |
-| **Order Panel** | Trade execution with Accumulators |
-| **Market Overview** | Top gainers/losers and sentiment |
-| **Portfolio** | Account balance breakdown |
-| **News** | Financial news feed |
-| **World Clock** | Major market times |
-| **Calculator** | Position size calculator |
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Service info |
+| `/health` | GET | Health check |
+| `/chat` | POST | Chat with Amy |
 
-## 🔒 Environment Variables
+### Chat Request
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `OPENAI_API_KEY` | OpenAI API key for Amy AI | No (demo mode works without it) |
+```json
+{
+  "message": "Hide the news",
+  "layoutState": {
+    "components": { ... },
+    "theme": "dark",
+    "language": "en",
+    "accentColor": "#FF444F",
+    "healthIssues": []
+  },
+  "conversationHistory": []
+}
+```
 
-## 🚀 Future Enhancements
+### Chat Response
 
-- [ ] Add more Deriv API features (place trades, trading history)
-- [ ] Voice commands for Amy
-- [ ] Persistent user preferences in database
-- [ ] More trading instrument types
-- [ ] Advanced AI reasoning about trading patterns
+```json
+{
+  "message": "Done! I've hidden the news panel.",
+  "uiChanges": [
+    { "component": "news", "action": "hide" }
+  ]
+}
+```
 
-## 📄 License
+## Environment Variables
 
-MIT License - Built as a POC for Deriv.com
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OPENAI_API_KEY` | No | Enables GPT-4 AI mode |
+
+## License
+
+MIT
 
 ---
 
-Built with ❤️ by Amy AI for the future of adaptive trading interfaces.
+*"The best interface is one that adapts to you, not one you adapt to."*
 

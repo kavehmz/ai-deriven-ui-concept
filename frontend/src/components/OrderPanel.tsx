@@ -1,270 +1,209 @@
-import { memo, useState } from 'react';
-import { Language, translations } from '../types';
-import { TradeParams, TradeResult } from '../hooks/useDerivAPI';
+import { useState } from 'react';
+import { ArrowUp, ArrowDown, Loader2, AlertCircle } from 'lucide-react';
 
 interface OrderPanelProps {
-  language: Language;
-  accentColor: string;
-  currentPrice: number;
-  symbol: string;
-  isAuthorized: boolean;
-  isTrading: boolean;
-  onTrade: (params: TradeParams) => Promise<TradeResult>;
+  authorized: boolean;
+  balance: number;
+  currency: string;
+  currentPrice: number | null;
+  onBuy: (type: 'CALL' | 'PUT', stake: number) => Promise<void>;
 }
 
-export const OrderPanel = memo(function OrderPanel({ 
-  language, 
-  accentColor: _accentColor, 
-  currentPrice, 
-  symbol,
-  isAuthorized,
-  isTrading,
-  onTrade
+export function OrderPanel({
+  authorized,
+  balance,
+  currency,
+  currentPrice,
+  onBuy,
 }: OrderPanelProps) {
-  void _accentColor; // Keep for future use
-  const t = translations[language];
   const [stake, setStake] = useState(10);
   const [duration, setDuration] = useState(5);
-  const [durationUnit, setDurationUnit] = useState<'t' | 'm'>('t'); // ticks or minutes
-  const [contractType, setContractType] = useState<'CALL' | 'PUT'>('CALL');
-  const [lastResult, setLastResult] = useState<TradeResult | null>(null);
-  const [showResult, setShowResult] = useState(false);
+  const [loading, setLoading] = useState<'CALL' | 'PUT' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
-  const handleTrade = async () => {
-    if (!isAuthorized) {
-      setLastResult({ success: false, error: 'Please connect your Deriv API token first' });
-      setShowResult(true);
-      setTimeout(() => setShowResult(false), 3000);
+  const handleBuy = async (type: 'CALL' | 'PUT') => {
+    if (!authorized) {
+      setError('Please connect your Deriv account first');
       return;
     }
 
-    const result = await onTrade({
-      symbol,
-      contractType,
-      duration,
-      durationUnit,
-      amount: stake,
-      basis: 'stake'
-    });
+    if (stake > balance) {
+      setError('Insufficient balance');
+      return;
+    }
 
-    setLastResult(result);
-    setShowResult(true);
-    setTimeout(() => setShowResult(false), 5000);
+    if (stake < 0.35) {
+      setError('Minimum stake is 0.35');
+      return;
+    }
+
+    setLoading(type);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await onBuy(type, stake);
+      setSuccess(`${type === 'CALL' ? 'Rise' : 'Fall'} contract purchased!`);
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to place order');
+    } finally {
+      setLoading(null);
+    }
   };
 
+  const presetStakes = [5, 10, 25, 50, 100];
+
   return (
-    <div className="h-full flex flex-col">
-      <div className="card-header">
-        <span className="text-xs text-deriv-text">Trade</span>
-        <div className="flex items-center gap-2">
-          <span className="font-semibold">Rise/Fall</span>
-        </div>
-        <button className="opacity-60 hover:opacity-100 transition-opacity">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </button>
+    <div className="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+          Rise/Fall
+        </h2>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+          Predict if price goes up or down
+        </p>
       </div>
 
-      <div className="card-content space-y-4">
-        {/* Auth warning */}
-        {!isAuthorized && (
-          <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 text-sm">
-            ⚠️ Connect your API token to place real trades
-          </div>
-        )}
-
-        {/* Trade result notification */}
-        {showResult && lastResult && (
-          <div className={`p-3 rounded-lg text-sm ${
-            lastResult.success 
-              ? 'bg-deriv-green/10 border border-deriv-green/30 text-deriv-green' 
-              : 'bg-deriv-red/10 border border-deriv-red/30 text-deriv-red'
-          }`}>
-            {lastResult.success ? (
-              <div>
-                ✅ Trade placed! Contract #{lastResult.contractId}
-                <div className="text-xs mt-1 opacity-80">
-                  Buy: ${lastResult.buyPrice?.toFixed(2)} | Payout: ${lastResult.payout?.toFixed(2)}
-                </div>
-              </div>
-            ) : (
-              <div>❌ {lastResult.error}</div>
-            )}
-          </div>
-        )}
-
-        {/* Contract Type Selection */}
-        <div>
-          <div className="text-sm mb-2">Prediction</div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setContractType('CALL')}
-              className={`p-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
-                contractType === 'CALL'
-                  ? 'bg-deriv-green text-white'
-                  : 'bg-white/5 hover:bg-white/10'
-              }`}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-              </svg>
-              Rise
-            </button>
-            <button
-              onClick={() => setContractType('PUT')}
-              className={`p-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
-                contractType === 'PUT'
-                  ? 'bg-deriv-red text-white'
-                  : 'bg-white/5 hover:bg-white/10'
-              }`}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-              </svg>
-              Fall
-            </button>
-          </div>
-        </div>
-
-        {/* Duration */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm">Duration</span>
-            <div className="flex gap-1">
-              <button
-                onClick={() => setDurationUnit('t')}
-                className={`px-2 py-1 rounded text-xs ${
-                  durationUnit === 't' ? 'accent-bg text-white' : 'bg-white/5'
-                }`}
-              >
-                Ticks
-              </button>
-              <button
-                onClick={() => setDurationUnit('m')}
-                className={`px-2 py-1 rounded text-xs ${
-                  durationUnit === 'm' ? 'accent-bg text-white' : 'bg-white/5'
-                }`}
-              >
-                Minutes
-              </button>
+      <div className="flex-1 p-4 flex flex-col gap-4 overflow-y-auto">
+        {/* Current Price */}
+        {currentPrice && (
+          <div className="text-center py-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
+            <div className="text-xs text-gray-500 dark:text-gray-400">Current Price</div>
+            <div className="text-lg font-mono font-semibold text-gray-900 dark:text-white">
+              {currentPrice.toFixed(2)}
             </div>
           </div>
-          <div className="flex items-center gap-2 bg-white/5 rounded-lg p-1">
-            <button 
-              onClick={() => setDuration(Math.max(1, duration - 1))}
-              className="p-2 hover:bg-white/10 rounded transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-              </svg>
-            </button>
-            <input
-              type="number"
-              value={duration}
-              onChange={(e) => setDuration(Math.max(1, parseInt(e.target.value) || 1))}
-              className="flex-1 bg-transparent text-center text-lg font-mono border-none outline-none"
-            />
-            <span className="text-deriv-text text-sm pr-2">{durationUnit === 't' ? 'ticks' : 'min'}</span>
-            <button 
-              onClick={() => setDuration(duration + 1)}
-              className="p-2 hover:bg-white/10 rounded transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-            </button>
-          </div>
-        </div>
+        )}
 
-        {/* Stake */}
+        {/* Stake Input */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm">{t.stake}</span>
-          </div>
-          <div className="flex items-center gap-2 bg-white/5 rounded-lg p-1">
-            <button 
-              onClick={() => setStake(Math.max(1, stake - 1))}
-              className="p-2 hover:bg-white/10 rounded transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-              </svg>
-            </button>
+          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+            Stake ({currency})
+          </label>
+          <div className="relative">
             <input
               type="number"
               value={stake}
-              onChange={(e) => setStake(Math.max(1, parseInt(e.target.value) || 1))}
-              className="flex-1 bg-transparent text-center text-lg font-mono border-none outline-none"
+              onChange={(e) => setStake(Math.max(0.35, parseFloat(e.target.value) || 0))}
+              min={0.35}
+              step={0.01}
+              className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-lg font-mono text-center text-gray-900 dark:text-white focus:ring-2 focus:ring-accent/50 focus:border-accent outline-none"
             />
-            <span className="text-deriv-text text-sm pr-2">USD</span>
-            <button 
-              onClick={() => setStake(stake + 1)}
-              className="p-2 hover:bg-white/10 rounded transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-            </button>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+              {currency}
+            </div>
+          </div>
+          
+          {/* Preset Stakes */}
+          <div className="flex gap-2 mt-2">
+            {presetStakes.map((preset) => (
+              <button
+                key={preset}
+                onClick={() => setStake(preset)}
+                className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                  stake === preset
+                    ? 'bg-accent text-white'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                {preset}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Current Price */}
-        <div className="p-3 rounded-lg bg-white/5 text-center">
-          <div className="text-xs text-deriv-text mb-1">Current spot price</div>
-          <div className="text-2xl font-mono font-semibold">{currentPrice.toFixed(2)}</div>
-          <div className="text-xs text-deriv-text mt-1">{symbol}</div>
+        {/* Duration (simplified) */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+            Duration (ticks)
+          </label>
+          <div className="flex gap-2">
+            {[5, 10, 15, 20].map((d) => (
+              <button
+                key={d}
+                onClick={() => setDuration(d)}
+                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  duration === d
+                    ? 'bg-accent text-white'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Quick amounts */}
-        <div className="grid grid-cols-4 gap-1">
-          {[5, 10, 25, 50].map((amount) => (
-            <button
-              key={amount}
-              onClick={() => setStake(amount)}
-              className={`py-2 rounded text-sm transition-all ${
-                stake === amount ? 'accent-bg text-white' : 'bg-white/5 hover:bg-white/10'
-              }`}
-            >
-              ${amount}
-            </button>
-          ))}
+        {/* Payout Info */}
+        <div className="flex items-center justify-between py-2 px-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            Potential payout
+          </span>
+          <span className="text-sm font-medium text-gray-900 dark:text-white">
+            ~{(stake * 1.95).toFixed(2)} {currency}
+          </span>
         </div>
-      </div>
 
-      {/* Buy Button */}
-      <div className="p-3 border-t border-deriv-border">
-        <button 
-          onClick={handleTrade}
-          disabled={isTrading}
-          className={`w-full py-4 rounded-lg text-lg font-semibold transition-all flex items-center justify-center gap-3 ${
-            isTrading ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'
-          }`}
-          style={{ 
-            background: contractType === 'CALL'
-              ? 'linear-gradient(135deg, #00c853 0%, #00c85388 100%)'
-              : 'linear-gradient(135deg, #ff444f 0%, #ff444f88 100%)'
-          }}
-        >
-          {isTrading ? (
-            <>
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              Placing trade...
-            </>
-          ) : (
-            <>
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {contractType === 'CALL' ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                )}
-              </svg>
-              {contractType === 'CALL' ? 'Buy Rise' : 'Buy Fall'} - ${stake}
-            </>
-          )}
-        </button>
+        {/* Error/Success Messages */}
+        {error && (
+          <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+            <span className="text-xs text-red-500">{error}</span>
+          </div>
+        )}
+
+        {success && (
+          <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+            <span className="text-xs text-green-500">{success}</span>
+          </div>
+        )}
+
+        {/* Not authorized warning */}
+        {!authorized && (
+          <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+            <span className="text-xs text-yellow-600 dark:text-yellow-500">
+              Connect your Deriv account to trade
+            </span>
+          </div>
+        )}
+
+        {/* Buy Buttons */}
+        <div className="flex gap-3 mt-auto">
+          <button
+            onClick={() => handleBuy('CALL')}
+            disabled={loading !== null}
+            className="flex-1 flex items-center justify-center gap-2 py-3 bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+          >
+            {loading === 'CALL' ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                <ArrowUp className="w-5 h-5" />
+                Rise
+              </>
+            )}
+          </button>
+          
+          <button
+            onClick={() => handleBuy('PUT')}
+            disabled={loading !== null}
+            className="flex-1 flex items-center justify-center gap-2 py-3 bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+          >
+            {loading === 'PUT' ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                <ArrowDown className="w-5 h-5" />
+                Fall
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
-});
+}
+

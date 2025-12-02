@@ -1,158 +1,153 @@
-import { memo } from 'react';
-import { DerivPosition, Language, translations } from '../types';
+import { useState } from 'react';
+import { ArrowUp, ArrowDown, X, Loader2, Briefcase } from 'lucide-react';
+import { Position } from '../types';
 
 interface PositionsProps {
-  positions: DerivPosition[];
-  language: Language;
-  isAuthorized: boolean;
+  positions: Position[];
+  authorized: boolean;
+  onSell: (contractId: number) => Promise<void>;
 }
 
-export const Positions = memo(function Positions({ positions, language, isAuthorized }: PositionsProps) {
-  const t = translations[language];
+export function Positions({ positions, authorized, onSell }: PositionsProps) {
+  const [sellingId, setSellingId] = useState<number | null>(null);
+
+  const openPositions = positions.filter((p) => !p.is_sold);
   
-  const totalPnL = positions.reduce((sum, p) => sum + p.pnl, 0);
+  const totalProfit = openPositions.reduce((sum, p) => sum + (p.profit || 0), 0);
+
+  const handleSell = async (contractId: number) => {
+    setSellingId(contractId);
+    try {
+      await onSell(contractId);
+    } finally {
+      setSellingId(null);
+    }
+  };
+
+  const getContractTypeName = (type: string) => {
+    if (type === 'CALL') return 'Rise';
+    if (type === 'PUT') return 'Fall';
+    return type;
+  };
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="card-header">
-        <span>{t.openPositions}</span>
+    <div className="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
         <div className="flex items-center gap-2">
-          {!isAuthorized && (
-            <span className="text-xs px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400">
-              Demo
+          <Briefcase className="w-4 h-4 text-gray-400" />
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+            Open Positions
+          </h2>
+          {openPositions.length > 0 && (
+            <span className="px-1.5 py-0.5 text-xs font-medium bg-accent/10 text-accent rounded">
+              {openPositions.length}
             </span>
           )}
-          <span className="text-xs text-deriv-text">{positions.length}</span>
         </div>
-      </div>
-      
-      <div className="card-content space-y-3">
-        {!isAuthorized ? (
-          <div className="text-center py-6 space-y-2">
-            <div className="text-4xl">🔒</div>
-            <div className="text-sm text-deriv-text">
-              Connect your Deriv API token to see real positions
-            </div>
-            <div className="text-xs text-deriv-text/60">
-              Click "Connect API" in header
-            </div>
+        
+        {openPositions.length > 0 && (
+          <div className={`text-sm font-medium ${totalProfit >= 0 ? 'profit' : 'loss'}`}>
+            {totalProfit >= 0 ? '+' : ''}{totalProfit.toFixed(2)} {openPositions[0]?.currency}
           </div>
-        ) : positions.length === 0 ? (
-          <div className="text-center text-deriv-text py-8">
-            <div className="text-3xl mb-2">📭</div>
-            {t.noPositions}
-          </div>
-        ) : (
-          positions.map((position) => (
-            <PositionCard key={position.contract_id} position={position} language={language} />
-          ))
         )}
       </div>
 
-      {/* Total P/L Footer */}
-      {isAuthorized && positions.length > 0 && (
-        <div className="p-3 border-t border-deriv-border dark:border-deriv-border light:border-deriv-lightBorder">
-          <div className="flex justify-between items-center text-sm">
-            <span className="text-deriv-text">{t.totalPnL}</span>
-            <span className={`font-semibold ${totalPnL >= 0 ? 'price-up' : 'price-down'}`}>
-              {totalPnL >= 0 ? '+' : ''}{totalPnL.toFixed(2)} USD
-            </span>
+      {/* Positions List */}
+      <div className="flex-1 overflow-y-auto">
+        {!authorized ? (
+          <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+            <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-3">
+              <Briefcase className="w-6 h-6 text-gray-400" />
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Connect your account to see positions
+            </p>
           </div>
-        </div>
-      )}
-    </div>
-  );
-});
-
-function PositionCard({ position, language }: { position: DerivPosition; language: Language }) {
-  const t = translations[language];
-  const isProfitable = position.pnl >= 0;
-  
-  // Get icon based on symbol
-  const getIcon = (symbol: string) => {
-    if (symbol.includes('GBP')) return '🇬🇧';
-    if (symbol.includes('EUR')) return '🇪🇺';
-    if (symbol.includes('USD')) return '🇺🇸';
-    if (symbol.includes('JPY')) return '🇯🇵';
-    if (symbol.includes('R_100')) return '💯';
-    if (symbol.includes('R_75')) return '7️⃣';
-    if (symbol.includes('R_50')) return '5️⃣';
-    if (symbol.includes('R_25')) return '2️⃣';
-    if (symbol.includes('R_10')) return '🔟';
-    if (symbol.includes('BOOM')) return '💥';
-    if (symbol.includes('CRASH')) return '📉';
-    if (symbol.includes('R_')) return '📊';
-    return '📈';
-  };
-
-  // Format symbol name
-  const formatSymbol = (symbol: string) => {
-    if (symbol === 'Unknown' || !symbol) return 'Loading...';
-    // Convert R_100 to "Volatility 100"
-    if (symbol.startsWith('R_')) {
-      return `Vol ${symbol.replace('R_', '')} Index`;
-    }
-    return symbol;
-  };
-
-  // Format contract type
-  const formatContractType = (type: string) => {
-    const typeMap: Record<string, string> = {
-      'CALL': '📈 Rise',
-      'PUT': '📉 Fall',
-      'DIGITOVER': 'Over',
-      'DIGITUNDER': 'Under',
-      'DIGITEVEN': 'Even',
-      'DIGITODD': 'Odd',
-      'MULTUP': '🔼 Multiplier Up',
-      'MULTDOWN': '🔽 Multiplier Down',
-    };
-    return typeMap[type] || type;
-  };
-
-  return (
-    <div className="p-3 rounded-lg bg-white/5 dark:bg-white/5 light:bg-black/5 space-y-2">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">{getIcon(position.symbol)}</span>
-          <div>
-            <div className="font-semibold text-sm">{formatSymbol(position.symbol)}</div>
-            <div className="text-xs text-deriv-text">{formatContractType(position.contract_type)}</div>
+        ) : openPositions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+            <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-3">
+              <Briefcase className="w-6 h-6 text-gray-400" />
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              No open positions
+            </p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+              Place a trade to get started
+            </p>
           </div>
-        </div>
-        <div className={`text-xs px-2 py-0.5 rounded ${isProfitable ? 'bg-deriv-green/20 text-deriv-green' : 'bg-deriv-red/20 text-deriv-red'}`}>
-          {isProfitable ? '+' : ''}{position.pnl_percentage.toFixed(1)}%
-        </div>
-      </div>
+        ) : (
+          <div className="divide-y divide-gray-200 dark:divide-gray-800">
+            {openPositions.map((position) => (
+              <div
+                key={position.contract_id}
+                className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                        position.contract_type === 'CALL'
+                          ? 'bg-green-500/10'
+                          : 'bg-red-500/10'
+                      }`}
+                    >
+                      {position.contract_type === 'CALL' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-green-500" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-red-500" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        {getContractTypeName(position.contract_type)}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {position.underlying || position.symbol}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={() => handleSell(position.contract_id)}
+                    disabled={sellingId === position.contract_id}
+                    className="px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-50"
+                  >
+                    {sellingId === position.contract_id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <X className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
 
-      {/* Details */}
-      <div className="grid grid-cols-2 gap-2 text-sm">
-        <div>
-          <div className="text-deriv-text text-xs">Buy price:</div>
-          <div className="font-mono font-medium">{position.buy_price.toFixed(2)}</div>
-        </div>
-        <div>
-          <div className="text-deriv-text text-xs">Current value:</div>
-          <div className={`font-mono font-medium ${isProfitable ? 'price-up' : 'price-down'}`}>
-            {position.current_price > 0 ? position.current_price.toFixed(2) : '---'}
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <div className="text-gray-500 dark:text-gray-400">Buy</div>
+                    <div className="font-medium text-gray-900 dark:text-white">
+                      {position.buy_price?.toFixed(2)} {position.currency}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500 dark:text-gray-400">Payout</div>
+                    <div className="font-medium text-gray-900 dark:text-white">
+                      {position.payout?.toFixed(2)} {position.currency}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500 dark:text-gray-400">P/L</div>
+                    <div className={`font-medium ${(position.profit || 0) >= 0 ? 'profit' : 'loss'}`}>
+                      {(position.profit || 0) >= 0 ? '+' : ''}
+                      {(position.profit || 0).toFixed(2)} {position.currency}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
-      </div>
-
-      {/* Total P/L */}
-      <div className="pt-2 border-t border-white/10 flex items-center justify-between">
-        <div>
-          <div className="text-xs text-deriv-text">{t.profit}/{t.loss}</div>
-          <div className={`text-lg font-semibold font-mono ${isProfitable ? 'price-up' : 'price-down'}`}>
-            {isProfitable ? '+' : ''}{position.pnl.toFixed(2)} USD
-          </div>
-        </div>
-        {/* Sell button */}
-        <button className="px-4 py-2 rounded bg-white/10 hover:bg-white/20 transition-colors text-sm">
-          Sell
-        </button>
+        )}
       </div>
     </div>
   );
 }
+
