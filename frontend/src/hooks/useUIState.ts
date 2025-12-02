@@ -105,6 +105,8 @@ export function useUIState() {
   }, []);
 
   const applyUIChanges = useCallback((changes: UIChange[]) => {
+    console.log('[Amy] Applying UI changes:', JSON.stringify(changes, null, 2));
+    
     // Process highlight actions separately (they don't modify layout state)
     for (const change of changes) {
       if (change.action === 'highlight' && change.component) {
@@ -138,19 +140,29 @@ export function useUIState() {
           continue;
         }
 
-        // Apply theme change
+        // Apply theme change (direct format or AI format)
         if (change.theme) {
           newLayout = { ...newLayout, theme: change.theme };
+        } else if (change.component === 'theme' && change.action === 'set' && change.value) {
+          console.log('[Amy] Changing theme (AI format) from', newLayout.theme, 'to', change.value);
+          newLayout = { ...newLayout, theme: change.value as 'dark' | 'light' };
         }
 
-        // Apply language change
+        // Apply language change (direct format or AI format)
         if (change.language) {
+          console.log('[Amy] Changing language from', newLayout.language, 'to', change.language);
           newLayout = { ...newLayout, language: change.language };
+        } else if (change.component === 'language' && change.action === 'set' && change.value) {
+          console.log('[Amy] Changing language (AI format) from', newLayout.language, 'to', change.value);
+          newLayout = { ...newLayout, language: change.value };
         }
 
-        // Apply accent color change
+        // Apply accent color change (direct format or AI format)
         if (change.accentColor) {
           newLayout = { ...newLayout, accentColor: change.accentColor };
+        } else if (change.component === 'accentColor' && change.action === 'set' && change.value) {
+          console.log('[Amy] Changing accent color (AI format) to', change.value);
+          newLayout = { ...newLayout, accentColor: change.value };
         }
 
         // Apply component-specific changes

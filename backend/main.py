@@ -60,6 +60,13 @@ class UIChange(BaseModel):
     accentColor: Optional[str] = None
     preset: Optional[str] = None  # trading, minimal, analysis, monitoring
 
+    model_config = {"extra": "ignore"}
+    
+    def model_dump(self, **kwargs):
+        # Exclude None values when serializing
+        kwargs.setdefault('exclude_none', True)
+        return super().model_dump(**kwargs)
+
 
 class ChatResponse(BaseModel):
     message: str
@@ -88,11 +95,11 @@ You can control the trading interface layout:
 - resize: Change size (small, medium, large, full)
 - highlight: Flash/pulse a component to draw user's attention (use this when guiding users!)
 
-**Other controls:**
-- theme: "dark" or "light"
-- language: en, es, fr, de, zh, ar, ja, pt, ru
-- accentColor: Any hex color
-- preset: trading, minimal, analysis, monitoring
+**Global settings (use these fields directly, NOT as component/action):**
+- theme: "dark" or "light" → use {"theme": "dark"}
+- language: en, es, fr, de, zh, ar, ja, pt, ru → use {"language": "es"}
+- accentColor: Any hex color → use {"accentColor": "#2196F3"}
+- preset: trading, minimal, analysis, monitoring → use {"preset": "trading"}
 
 ## 2. TRADING GUIDANCE
 You can guide users step-by-step through trading operations. When helping users:
@@ -112,9 +119,15 @@ Always respond with a JSON object:
   "message": "Your conversational response with clear instructions",
   "uiChanges": [
     {"component": "orderPanel", "action": "highlight"},
-    {"component": "chart", "action": "show"}
+    {"component": "chart", "action": "show"},
+    {"language": "es"},
+    {"theme": "dark"},
+    {"accentColor": "#FF0000"},
+    {"preset": "trading"}
   ]
 }
+
+IMPORTANT: For language, theme, accentColor, and preset changes, use the direct field format like {"language": "es"}, NOT {"component": "language", "action": "set", "value": "es"}.
 
 ## CURRENT STATE
 You'll receive the current layout state with each message. Use it to:
@@ -550,16 +563,22 @@ async def health():
     return {"status": "healthy", "mode": "ai" if openai_client else "demo"}
 
 
-@app.post("/chat", response_model=ChatResponse)
+@app.post("/chat", response_model=ChatResponse, response_model_exclude_none=True)
 async def chat(request: ChatRequest):
     if openai_client:
-        return await ai_mode_response(
+        response = await ai_mode_response(
             request.message,
             request.layoutState,
             request.conversationHistory or []
         )
     else:
-        return demo_mode_response(request.message, request.layoutState)
+        response = demo_mode_response(request.message, request.layoutState)
+    
+    print(f"[Amy] Sending response: {response.message[:50]}... with {len(response.uiChanges)} UI changes")
+    for change in response.uiChanges:
+        print(f"[Amy] UI Change: {change}")
+    
+    return response
 
 
 if __name__ == "__main__":

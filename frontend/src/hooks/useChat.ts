@@ -57,6 +57,7 @@ export function useChat({ onUIChanges, getLayoutState }: UseChatOptions) {
         }
 
         const data: ChatResponse = await response.json();
+        console.log('[Amy] Response from backend:', JSON.stringify(data, null, 2));
 
         // Add assistant message
         const assistantMessage: ChatMessage = {
@@ -68,7 +69,10 @@ export function useChat({ onUIChanges, getLayoutState }: UseChatOptions) {
 
         // Apply UI changes
         if (data.uiChanges && data.uiChanges.length > 0) {
+          console.log('[Amy] Calling onUIChanges with:', data.uiChanges);
           onUIChanges(data.uiChanges);
+        } else {
+          console.log('[Amy] No UI changes to apply');
         }
 
         // Show notification if chat is closed

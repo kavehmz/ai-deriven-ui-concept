@@ -14,7 +14,7 @@ export interface LayoutState {
 
 export interface UIChange {
   component?: string;
-  action?: 'show' | 'hide' | 'resize' | 'reorder' | 'highlight';
+  action?: 'show' | 'hide' | 'resize' | 'reorder' | 'highlight' | 'set';
   value?: string;
   theme?: 'dark' | 'light';
   language?: string;

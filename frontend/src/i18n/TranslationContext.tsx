@@ -1,4 +1,4 @@
-import { createContext, useContext, ReactNode } from 'react';
+import { createContext, useContext, ReactNode, useMemo } from 'react';
 import { getTranslation, TranslationKey } from './translations';
 
 type TranslationFunction = (key: TranslationKey) => string;
@@ -17,10 +17,14 @@ interface TranslationProviderProps {
 }
 
 export function TranslationProvider({ language, children }: TranslationProviderProps) {
-  const t = (key: TranslationKey): string => getTranslation(language, key);
+  // Memoize the context value to ensure it updates when language changes
+  const contextValue = useMemo(() => ({
+    t: (key: TranslationKey): string => getTranslation(language, key),
+    language,
+  }), [language]);
 
   return (
-    <TranslationContext.Provider value={{ t, language }}>
+    <TranslationContext.Provider value={contextValue}>
       {children}
     </TranslationContext.Provider>
   );
