@@ -1,34 +1,39 @@
-import { memo, useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ChatMessage, UIState, Language, translations } from '../types';
+import { useState, useRef, useEffect } from 'react';
+import {
+  MessageCircle,
+  X,
+  Send,
+  Loader2,
+  Sparkles,
+  Minimize2,
+  Trash2,
+} from 'lucide-react';
+import { ChatMessage } from '../types';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
   isLoading: boolean;
-  onSendMessage: (message: string, currentUI: UIState) => void;
-  currentUI: UIState;
-  accentColor: string;
-  language: Language;
-  layoutDescription: string;
+  isOpen: boolean;
+  hasNewMessage: boolean;
+  onSendMessage: (message: string) => void;
+  onToggle: () => void;
+  onClear: () => void;
 }
 
-export const ChatPanel = memo(function ChatPanel({
+export function ChatPanel({
   messages,
   isLoading,
+  isOpen,
+  hasNewMessage,
   onSendMessage,
-  currentUI,
-  accentColor,
-  language,
-  layoutDescription
+  onToggle,
+  onClear,
 }: ChatPanelProps) {
-  void layoutDescription; // Used in currentUI context
-  const t = translations[language];
-  const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-scroll to bottom
+  // Scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -36,154 +41,168 @@ export const ChatPanel = memo(function ChatPanel({
   // Focus input when opened
   useEffect(() => {
     if (isOpen) {
-      inputRef.current?.focus();
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim() && !isLoading) {
-      onSendMessage(input.trim(), currentUI);
+      onSendMessage(input.trim());
       setInput('');
     }
   };
 
-  return (
-    <div className="chat-floating" dir="ltr">
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="chat-panel"
-          >
-            {/* Header */}
-            <div 
-              className="flex items-center gap-3 p-4 border-b border-deriv-border dark:border-deriv-border light:border-deriv-lightBorder"
-              style={{ background: `linear-gradient(135deg, ${accentColor}15 0%, transparent 100%)` }}
-            >
-              <div className="amy-avatar w-10 h-10 rounded-full flex items-center justify-center text-white font-bold" style={{ background: accentColor }}>
-                A
-              </div>
-              <div className="flex-1">
-                <div className="font-semibold">Amy</div>
-                <div className="text-xs text-deriv-text">AI Trading Assistant</div>
-              </div>
-              <button 
-                onClick={() => setIsOpen(false)}
-                className="p-2 hover:bg-white/10 rounded-full transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+  const quickActions = [
+    { label: 'Trading layout', message: 'Set up for day trading' },
+    { label: 'Minimal view', message: 'Give me a minimal layout' },
+    { label: 'Dark mode', message: 'Switch to dark mode' },
+    { label: "What's visible?", message: "What's my current layout?" },
+  ];
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[320px]">
-              {messages.map((msg) => (
-                <motion.div
-                  key={msg.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
-                      msg.role === 'user'
-                        ? 'accent-bg text-white rounded-br-sm'
-                        : 'bg-white/10 dark:bg-white/10 light:bg-black/5 rounded-bl-sm'
-                    }`}
-                  >
-                    <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
-                    <div className={`text-xs mt-1 ${msg.role === 'user' ? 'text-white/60' : 'text-deriv-text'}`}>
-                      {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-              
-              {isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-white/10 rounded-2xl rounded-bl-sm px-4 py-3">
-                    <div className="typing-indicator">
-                      <span></span>
-                      <span></span>
-                      <span></span>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input */}
-            <form onSubmit={handleSubmit} className="p-4 border-t border-deriv-border dark:border-deriv-border light:border-deriv-lightBorder">
-              <div className="flex items-center gap-2">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder={t.chatPlaceholder}
-                  className="flex-1 input-field text-sm"
-                  disabled={isLoading}
-                />
-                <button
-                  type="submit"
-                  disabled={!input.trim() || isLoading}
-                  className="p-3 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
-                  style={{ background: accentColor }}
-                >
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
-                </button>
-              </div>
-            </form>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Chat bubble */}
-      <motion.button
-        onClick={() => setIsOpen(!isOpen)}
-        className="chat-bubble"
-        style={{ background: accentColor }}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+  // Floating chat bubble when closed
+  if (!isOpen) {
+    return (
+      <button
+        onClick={onToggle}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-accent hover:bg-accent-hover text-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-105 z-50"
       >
-        <AnimatePresence mode="wait">
-          {isOpen ? (
-            <motion.svg
-              key="close"
-              initial={{ rotate: -90, opacity: 0 }}
-              animate={{ rotate: 0, opacity: 1 }}
-              exit={{ rotate: 90, opacity: 0 }}
-              className="w-6 h-6 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+        <MessageCircle className="w-6 h-6" />
+        {hasNewMessage && (
+          <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white animate-pulse" />
+        )}
+      </button>
+    );
+  }
+
+  return (
+    <div className="fixed bottom-6 right-6 w-96 h-[32rem] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 flex flex-col overflow-hidden z-50 slide-up">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-accent to-accent-hover">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+            <Sparkles className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-white">Amy</h3>
+            <p className="text-xs text-white/70">AI Trading Assistant</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onClear}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            title="Clear chat"
+          >
+            <Trash2 className="w-4 h-4 text-white/70" />
+          </button>
+          <button
+            onClick={onToggle}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            title="Minimize"
+          >
+            <Minimize2 className="w-4 h-4 text-white/70" />
+          </button>
+          <button
+            onClick={onToggle}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            title="Close"
+          >
+            <X className="w-4 h-4 text-white" />
+          </button>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map((msg, idx) => (
+          <div
+            key={idx}
+            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+          >
+            <div
+              className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
+                msg.role === 'user'
+                  ? 'bg-accent text-white rounded-br-sm'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-sm'
+              }`}
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </motion.svg>
-          ) : (
-            <motion.div
-              key="amy"
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.5, opacity: 0 }}
-              className="text-white font-bold text-xl"
-            >
-              A
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.button>
+              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+              <p
+                className={`text-xs mt-1 ${
+                  msg.role === 'user'
+                    ? 'text-white/60'
+                    : 'text-gray-400 dark:text-gray-500'
+                }`}
+              >
+                {msg.timestamp.toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </p>
+            </div>
+          </div>
+        ))}
+
+        {isLoading && (
+          <div className="flex justify-start">
+            <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl rounded-bl-sm px-4 py-3">
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-accent" />
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  Amy is thinking...
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Quick Actions */}
+      {messages.length <= 2 && (
+        <div className="px-4 pb-2">
+          <div className="flex flex-wrap gap-2">
+            {quickActions.map((action) => (
+              <button
+                key={action.label}
+                onClick={() => onSendMessage(action.message)}
+                disabled={isLoading}
+                className="px-3 py-1.5 text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Input */}
+      <form
+        onSubmit={handleSubmit}
+        className="p-4 border-t border-gray-200 dark:border-gray-800"
+      >
+        <div className="flex items-center gap-2">
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask Amy to customize your layout..."
+            disabled={isLoading}
+            className="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-accent/50 focus:border-accent outline-none disabled:opacity-50"
+          />
+          <button
+            type="submit"
+            disabled={!input.trim() || isLoading}
+            className="p-2.5 bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl transition-colors"
+          >
+            <Send className="w-5 h-5" />
+          </button>
+        </div>
+      </form>
     </div>
   );
-});
+}
 

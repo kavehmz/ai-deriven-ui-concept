@@ -1,96 +1,143 @@
-import { memo } from 'react';
-import { DerivBalance, Language, translations } from '../types';
+import { Wallet, TrendingUp, PieChart, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Account, Position } from '../types';
 
 interface PortfolioProps {
-  balance: DerivBalance | null;
-  language: Language;
-  accentColor: string;
+  account: Account | null;
+  positions: Position[];
+  authorized: boolean;
 }
 
-export const Portfolio = memo(function Portfolio({ balance, language, accentColor }: PortfolioProps) {
-  const t = translations[language];
-  
-  // Demo balance if not authorized
-  const displayBalance = balance || {
-    balance: 9819.26,
-    currency: 'USD',
-    loginid: 'VRTC1234567',
-    account_type: 'Demo'
-  };
-
-  // Mock portfolio breakdown
-  const breakdown = [
-    { label: 'Available', value: displayBalance.balance * 0.85, color: accentColor },
-    { label: 'In trades', value: displayBalance.balance * 0.12, color: '#00c853' },
-    { label: 'Reserved', value: displayBalance.balance * 0.03, color: '#ffc107' },
-  ];
-
-  const total = breakdown.reduce((sum, item) => sum + item.value, 0);
+export function Portfolio({ account, positions, authorized }: PortfolioProps) {
+  const openPositions = positions.filter((p) => !p.is_sold);
+  const totalInvested = openPositions.reduce((sum, p) => sum + (p.buy_price || 0), 0);
+  const totalPL = openPositions.reduce((sum, p) => sum + (p.profit || 0), 0);
+  const plPercent = totalInvested > 0 ? (totalPL / totalInvested) * 100 : 0;
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="card-header">
-        <span>{t.portfolio}</span>
-        <span className="text-xs px-2 py-0.5 rounded bg-deriv-green/20 text-deriv-green">
-          {displayBalance.account_type}
-        </span>
+    <div className="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+        <PieChart className="w-4 h-4 text-purple-500" />
+        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+          Portfolio
+        </h2>
       </div>
-      
-      <div className="card-content">
-        {/* Total Balance */}
-        <div className="text-center mb-4">
-          <div className="text-xs text-deriv-text mb-1">{t.balance}</div>
-          <div className="text-3xl font-bold" style={{ color: accentColor }}>
-            {displayBalance.balance.toLocaleString('en-US', { 
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2 
-            })}
-          </div>
-          <div className="text-sm text-deriv-text">{displayBalance.currency}</div>
-        </div>
 
-        {/* Progress bar breakdown */}
-        <div className="h-3 rounded-full overflow-hidden flex mb-3">
-          {breakdown.map((item, i) => (
-            <div 
-              key={i}
-              className="transition-all duration-500"
-              style={{ 
-                width: `${(item.value / total) * 100}%`,
-                backgroundColor: item.color,
-              }}
-            />
-          ))}
-        </div>
-
-        {/* Legend */}
-        <div className="space-y-2">
-          {breakdown.map((item, i) => (
-            <div key={i} className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <div 
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: item.color }}
-                />
-                <span className="text-deriv-text">{item.label}</span>
-              </div>
-              <span className="font-mono">
-                {item.value.toLocaleString('en-US', { 
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2 
-                })} {displayBalance.currency}
-              </span>
+      <div className="flex-1 p-4 overflow-y-auto">
+        {!authorized ? (
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-3">
+              <Wallet className="w-6 h-6 text-gray-400" />
             </div>
-          ))}
-        </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Connect your account to view portfolio
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Balance Card */}
+            <div className="p-4 bg-gradient-to-br from-accent/10 to-accent/5 rounded-xl border border-accent/20">
+              <div className="flex items-center gap-2 mb-2">
+                <Wallet className="w-4 h-4 text-accent" />
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                  Available Balance
+                </span>
+              </div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                {account?.balance.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}{' '}
+                <span className="text-sm font-normal text-gray-500">
+                  {account?.currency}
+                </span>
+              </div>
+            </div>
 
-        {/* Account ID */}
-        <div className="mt-4 pt-4 border-t border-deriv-border text-center">
-          <div className="text-xs text-deriv-text">Account ID</div>
-          <div className="font-mono text-sm">{displayBalance.loginid}</div>
-        </div>
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Invested */}
+              <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  <TrendingUp className="w-3 h-3" />
+                  Invested
+                </div>
+                <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {totalInvested.toFixed(2)}
+                </div>
+              </div>
+
+              {/* P/L */}
+              <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  {totalPL >= 0 ? (
+                    <ArrowUpRight className="w-3 h-3 text-green-500" />
+                  ) : (
+                    <ArrowDownRight className="w-3 h-3 text-red-500" />
+                  )}
+                  Total P/L
+                </div>
+                <div
+                  className={`text-lg font-semibold ${
+                    totalPL >= 0 ? 'profit' : 'loss'
+                  }`}
+                >
+                  {totalPL >= 0 ? '+' : ''}
+                  {totalPL.toFixed(2)}
+                  <span className="text-xs ml-1">
+                    ({plPercent >= 0 ? '+' : ''}
+                    {plPercent.toFixed(1)}%)
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Positions Summary */}
+            <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  Open Positions
+                </span>
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                  {openPositions.length}
+                </span>
+              </div>
+              
+              {openPositions.length > 0 && (
+                <div className="flex gap-2">
+                  <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-green-500 rounded-full"
+                      style={{
+                        width: `${
+                          (openPositions.filter((p) => (p.profit || 0) >= 0).length /
+                            openPositions.length) *
+                          100
+                        }%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex justify-between text-xs mt-1 text-gray-400 dark:text-gray-500">
+                <span>
+                  {openPositions.filter((p) => (p.profit || 0) >= 0).length} profitable
+                </span>
+                <span>
+                  {openPositions.filter((p) => (p.profit || 0) < 0).length} losing
+                </span>
+              </div>
+            </div>
+
+            {/* Account Info */}
+            <div className="text-xs text-gray-400 dark:text-gray-500 text-center">
+              Account: {account?.loginid}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
-});
+}
 

@@ -1,15 +1,8 @@
 import { useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useDerivAPI } from './hooks/useDerivAPI';
-import { useChat } from './hooks/useChat';
-import { useUIState } from './hooks/useUIState';
-import { UIState, ComponentsConfig } from './types';
-
-// Components
 import { Header } from './components/Header';
 import { PriceChart } from './components/PriceChart';
-import { Positions } from './components/Positions';
 import { OrderPanel } from './components/OrderPanel';
+import { Positions } from './components/Positions';
 import { Watchlist } from './components/Watchlist';
 import { MarketOverview } from './components/MarketOverview';
 import { News } from './components/News';
@@ -17,162 +10,199 @@ import { Portfolio } from './components/Portfolio';
 import { WorldClock } from './components/WorldClock';
 import { Calculator } from './components/Calculator';
 import { ChatPanel } from './components/ChatPanel';
+import { useUIState } from './hooks/useUIState';
+import { useDerivAPI } from './hooks/useDerivAPI';
+import { useChat } from './hooks/useChat';
+import { ComponentId } from './types';
 
 function App() {
-  const derivAPI = useDerivAPI();
-  const chat = useChat();
-  const ui = useUIState();
+  const {
+    layout,
+    visibleComponents,
+    applyUIChanges,
+    setTheme,
+    setLanguage,
+  } = useUIState();
 
-  // Handle chat messages and apply UI changes
-  const handleSendMessage = useCallback(async (message: string, currentUI: UIState) => {
-    const response = await chat.sendMessage(message, currentUI);
-    
-    if (response?.uiChanges) {
-      ui.applyUIChanges(response.uiChanges);
-    }
-  }, [chat, ui]);
+  const {
+    connected,
+    authorized,
+    account,
+    positions,
+    tick,
+    candles,
+    symbols,
+    selectedSymbol,
+    authorize,
+    logout,
+    selectSymbol,
+    buyContract,
+    sellContract,
+  } = useDerivAPI();
 
-  const currentPrice = derivAPI.ticks[derivAPI.selectedSymbol]?.quote ?? 0;
+  const getLayoutState = useCallback(() => layout, [layout]);
 
-  // Animation variants for grid items
-  const itemVariants = {
-    hidden: { opacity: 0, scale: 0.95 },
-    visible: { opacity: 1, scale: 1 },
-    exit: { opacity: 0, scale: 0.95 }
+  const {
+    messages,
+    isLoading,
+    isOpen,
+    hasNewMessage,
+    sendMessage,
+    toggleChat,
+    clearHistory,
+  } = useChat({
+    onUIChanges: applyUIChanges,
+    getLayoutState,
+  });
+
+  const handleThemeToggle = () => {
+    setTheme(layout.theme === 'dark' ? 'light' : 'dark');
   };
 
-  // Render component based on key
-  const renderComponent = (key: keyof ComponentsConfig) => {
-    switch (key) {
-      case 'chart':
-        return (
-          <PriceChart
-            candles={derivAPI.candles}
-            tick={derivAPI.ticks[derivAPI.selectedSymbol]}
-            markets={derivAPI.markets}
-            selectedSymbol={derivAPI.selectedSymbol}
-            onSymbolChange={derivAPI.setSelectedSymbol}
-            theme={ui.uiState.theme}
-            accentColor={ui.uiState.accentColor}
-          />
-        );
-      case 'positions':
-        return (
-          <Positions
-            positions={derivAPI.positions}
-            language={ui.uiState.language}
-            isAuthorized={derivAPI.isAuthorized}
-          />
-        );
-      case 'watchlist':
-        return (
-          <Watchlist
-            markets={derivAPI.markets}
-            selectedSymbol={derivAPI.selectedSymbol}
-            onSymbolSelect={derivAPI.setSelectedSymbol}
-            language={ui.uiState.language}
-          />
-        );
-      case 'orderPanel':
-        return (
-          <OrderPanel
-            language={ui.uiState.language}
-            accentColor={ui.uiState.accentColor}
-            currentPrice={currentPrice}
-            symbol={derivAPI.selectedSymbol}
-            isAuthorized={derivAPI.isAuthorized}
-            isTrading={derivAPI.isTrading}
-            onTrade={derivAPI.placeTrade}
-          />
-        );
-      case 'marketOverview':
-        return (
-          <MarketOverview
-            markets={derivAPI.markets}
-            language={ui.uiState.language}
-          />
-        );
-      case 'news':
-        return (
-          <News language={ui.uiState.language} />
-        );
-      case 'portfolio':
-        return (
-          <Portfolio
-            balance={derivAPI.balance}
-            language={ui.uiState.language}
-            accentColor={ui.uiState.accentColor}
-          />
-        );
-      case 'clock':
-        return (
-          <WorldClock language={ui.uiState.language} />
-        );
-      case 'calculator':
-        return (
-          <Calculator
-            language={ui.uiState.language}
-            accentColor={ui.uiState.accentColor}
-          />
-        );
-      default:
-        return null;
-    }
+  const handleBuy = async (type: 'CALL' | 'PUT', stake: number) => {
+    await buyContract(type, stake);
   };
 
-  // Get sorted visible components
-  const sortedComponents = ui.getVisibleComponentsSorted();
+  const handleSell = async (contractId: number) => {
+    await sellContract(contractId);
+  };
+
+  const getSizeClass = (componentId: ComponentId) => {
+    const size = layout.components[componentId]?.size || 'medium';
+    return `component-${size}`;
+  };
+
+  const renderComponent = (componentId: ComponentId) => {
+    const minHeights: Record<ComponentId, string> = {
+      chart: 'min-h-[350px]',
+      orderPanel: 'min-h-[400px]',
+      positions: 'min-h-[250px]',
+      watchlist: 'min-h-[300px]',
+      marketOverview: 'min-h-[300px]',
+      news: 'min-h-[300px]',
+      portfolio: 'min-h-[300px]',
+      clock: 'min-h-[280px]',
+      calculator: 'min-h-[320px]',
+    };
+
+    const componentProps: Record<ComponentId, React.ReactNode> = {
+      chart: (
+        <PriceChart
+          candles={candles}
+          tick={tick}
+          symbols={symbols}
+          selectedSymbol={selectedSymbol}
+          onSymbolChange={selectSymbol}
+          theme={layout.theme}
+        />
+      ),
+      orderPanel: (
+        <OrderPanel
+          authorized={authorized}
+          balance={account?.balance || 0}
+          currency={account?.currency || 'USD'}
+          currentPrice={tick?.quote || null}
+          onBuy={handleBuy}
+        />
+      ),
+      positions: (
+        <Positions
+          positions={positions}
+          authorized={authorized}
+          onSell={handleSell}
+        />
+      ),
+      watchlist: (
+        <Watchlist
+          symbols={symbols}
+          selectedSymbol={selectedSymbol}
+          onSelectSymbol={selectSymbol}
+        />
+      ),
+      marketOverview: <MarketOverview />,
+      news: <News />,
+      portfolio: (
+        <Portfolio
+          account={account}
+          positions={positions}
+          authorized={authorized}
+        />
+      ),
+      clock: <WorldClock />,
+      calculator: <Calculator />,
+    };
+
+    return (
+      <div
+        key={componentId}
+        className={`${getSizeClass(componentId)} ${minHeights[componentId]} fade-in`}
+      >
+        {componentProps[componentId]}
+      </div>
+    );
+  };
 
   return (
-    <div 
-      className={`min-h-screen ${ui.uiState.theme === 'dark' ? 'bg-deriv-dark text-white' : 'bg-gray-100 text-gray-900'}`}
-      dir={ui.uiState.language === 'ar' ? 'rtl' : 'ltr'}
+    <div
+      className={`min-h-screen bg-gray-100 dark:bg-gray-950 ${
+        layout.theme === 'dark' ? 'dark' : ''
+      }`}
     >
       {/* Header */}
       <Header
-        balance={derivAPI.balance}
-        isConnected={derivAPI.isConnected}
-        onAuthorize={derivAPI.authorize}
-        isAuthorized={derivAPI.isAuthorized}
-        authError={derivAPI.authError}
+        theme={layout.theme}
+        language={layout.language}
+        account={account}
+        authorized={authorized}
+        onThemeToggle={handleThemeToggle}
+        onLanguageChange={setLanguage}
+        onAuthorize={authorize}
+        onLogout={logout}
       />
 
-      {/* Main Grid */}
-      <main className="trading-grid">
-        <AnimatePresence mode="popLayout">
-          {sortedComponents.map(({ key, config }) => (
-            <motion.div
-              key={key}
-              layout
-              variants={itemVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              transition={{ 
-                duration: 0.3, 
-                ease: 'easeInOut',
-                layout: { duration: 0.3 }
-              }}
-              className={`grid-item component-${key} grid-size-${config.size}`}
-            >
-              {renderComponent(key)}
-            </motion.div>
-          ))}
-        </AnimatePresence>
+      {/* Connection Status */}
+      {!connected && (
+        <div className="bg-yellow-500/10 border-b border-yellow-500/20 px-4 py-2">
+          <p className="text-xs text-yellow-600 dark:text-yellow-500 text-center">
+            Connecting to Deriv API...
+          </p>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <main className="components-grid pb-24">
+        {visibleComponents.map((componentId) => renderComponent(componentId))}
+
+        {/* Empty state when no components visible */}
+        {visibleComponents.length === 0 && (
+          <div className="col-span-full flex flex-col items-center justify-center py-20">
+            <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center mb-4">
+              <span className="text-3xl">🎨</span>
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Your canvas is empty
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 text-center max-w-md">
+              Chat with Amy to add components to your workspace. Try saying
+              "Show me a trading layout" or "Add the chart and positions".
+            </p>
+          </div>
+        )}
       </main>
 
       {/* Floating Chat */}
       <ChatPanel
-        messages={chat.messages}
-        isLoading={chat.isLoading}
-        onSendMessage={handleSendMessage}
-        currentUI={ui.uiState}
-        accentColor={ui.uiState.accentColor}
-        language={ui.uiState.language}
-        layoutDescription={ui.getLayoutDescription()}
+        messages={messages}
+        isLoading={isLoading}
+        isOpen={isOpen}
+        hasNewMessage={hasNewMessage}
+        onSendMessage={sendMessage}
+        onToggle={toggleChat}
+        onClear={clearHistory}
       />
     </div>
   );
 }
 
 export default App;
+
