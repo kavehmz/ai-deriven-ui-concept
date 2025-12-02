@@ -164,6 +164,71 @@ body {
   }
 }
 
+/* Component highlight animation - Amy's attention indicator */
+.component-highlight {
+  animation: highlightPulse 1s ease-in-out infinite;
+  position: relative;
+}
+
+.component-highlight::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 16px;
+  border: 3px solid var(--accent-color);
+  animation: highlightBorder 1s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.component-highlight::after {
+  content: '👆 Amy is showing you this';
+  position: absolute;
+  top: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent-color);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 11;
+  animation: highlightLabel 1s ease-in-out infinite;
+}
+
+@keyframes highlightPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 68, 79, 0);
+  }
+  50% {
+    box-shadow: 0 0 20px 5px rgba(255, 68, 79, 0.3);
+  }
+}
+
+@keyframes highlightBorder {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.01);
+  }
+}
+
+@keyframes highlightLabel {
+  0%, 100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translateX(-50%) translateY(-2px);
+  }
+}
+
 /* Profit/Loss colors */
 .profit {
   color: #00D4AA;

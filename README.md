@@ -11,6 +11,7 @@ An AI-powered trading platform where the user interface adapts to your needs thr
 - **Layout Presets**: Trading, minimal, analysis, and monitoring modes
 - **Theme & Language**: Switch themes and languages including RTL support for Arabic
 - **Context-Aware**: Amy knows your current layout and gives intelligent responses
+- **Component Highlighting**: Amy can flash/pulse components to draw your attention during tutorials
 
 ### 📈 Real Trading
 - **Live Market Data**: Real-time prices from Deriv API
@@ -52,6 +53,13 @@ Without the key, Amy still works in demo mode with pattern matching.
 
 Click the chat bubble in the bottom-right corner and try:
 
+**🎓 Learn Trading (Amy will guide you step-by-step!):**
+- "How do I place a trade?" - Interactive tutorial with component highlighting
+- "What is Rise/Fall?" - Explains binary options trading
+- "Explain the chart" - Learn about any component
+- "Show me the order panel" - Highlights components for you
+
+**🎨 Customize Layout:**
 - "Hide the news panel"
 - "Make the chart bigger"
 - "Switch to dark mode"
@@ -59,6 +67,11 @@ Click the chat bubble in the bottom-right corner and try:
 - "What's my current layout?"
 - "Change the accent color to blue"
 - "Switch to Spanish"
+
+**📚 Get Information:**
+- "What are synthetic indices?"
+- "How do I connect my account?"
+- "Help" - See all available commands
 
 ### Connect Your Deriv Account
 

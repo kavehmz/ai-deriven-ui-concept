@@ -54,10 +54,10 @@ export function ChatPanel({
   };
 
   const quickActions = [
-    { label: 'Trading layout', message: 'Set up for day trading' },
-    { label: 'Minimal view', message: 'Give me a minimal layout' },
-    { label: 'Dark mode', message: 'Switch to dark mode' },
-    { label: "What's visible?", message: "What's my current layout?" },
+    { label: '🎓 How to trade?', message: 'How do I place a trade?' },
+    { label: '📊 What is Rise/Fall?', message: 'What is Rise/Fall?' },
+    { label: '🎨 Trading layout', message: 'Set up for day trading' },
+    { label: '🌙 Dark mode', message: 'Switch to dark mode' },
   ];
 
   // Floating chat bubble when closed

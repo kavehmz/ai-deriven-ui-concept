@@ -19,6 +19,7 @@ function App() {
   const {
     layout,
     visibleComponents,
+    highlightedComponents,
     applyUIChanges,
     setTheme,
     setLanguage,
@@ -132,10 +133,14 @@ function App() {
       calculator: <Calculator />,
     };
 
+    const isHighlighted = highlightedComponents.has(componentId);
+
     return (
       <div
         key={componentId}
-        className={`${getSizeClass(componentId)} ${minHeights[componentId]} fade-in`}
+        className={`${getSizeClass(componentId)} ${minHeights[componentId]} fade-in ${
+          isHighlighted ? 'component-highlight' : ''
+        }`}
       >
         {componentProps[componentId]}
       </div>

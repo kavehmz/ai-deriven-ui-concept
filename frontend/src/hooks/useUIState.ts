@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { LayoutState, ComponentState, UIChange, ComponentId, PRESETS, LANGUAGES } from '../types';
 
 const STORAGE_KEY = 'amy-ui-state';
+const HIGHLIGHT_DURATION = 3000; // 3 seconds
 
 const DEFAULT_LAYOUT: LayoutState = {
   components: {
@@ -22,6 +23,9 @@ const DEFAULT_LAYOUT: LayoutState = {
 };
 
 export function useUIState() {
+  const [highlightedComponents, setHighlightedComponents] = useState<Set<ComponentId>>(new Set());
+  const highlightTimersRef = useRef<Map<ComponentId, ReturnType<typeof setTimeout>>>(new Map());
+
   const [layout, setLayout] = useState<LayoutState>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -77,11 +81,44 @@ export function useUIState() {
     document.documentElement.style.setProperty('--accent-hover', hoverColor);
   }, [layout.accentColor]);
 
+  const highlightComponent = useCallback((componentId: ComponentId) => {
+    // Clear existing timer for this component
+    const existingTimer = highlightTimersRef.current.get(componentId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    // Add to highlighted set
+    setHighlightedComponents((prev) => new Set(prev).add(componentId));
+
+    // Set timer to remove highlight
+    const timer = setTimeout(() => {
+      setHighlightedComponents((prev) => {
+        const next = new Set(prev);
+        next.delete(componentId);
+        return next;
+      });
+      highlightTimersRef.current.delete(componentId);
+    }, HIGHLIGHT_DURATION);
+
+    highlightTimersRef.current.set(componentId, timer);
+  }, []);
+
   const applyUIChanges = useCallback((changes: UIChange[]) => {
+    // Process highlight actions separately (they don't modify layout state)
+    for (const change of changes) {
+      if (change.action === 'highlight' && change.component) {
+        highlightComponent(change.component as ComponentId);
+      }
+    }
+
     setLayout((prev) => {
       let newLayout = { ...prev };
       
       for (const change of changes) {
+        // Skip highlight actions (handled above)
+        if (change.action === 'highlight') continue;
+
         // Apply preset
         if (change.preset && PRESETS[change.preset]) {
           const preset = PRESETS[change.preset];
@@ -173,7 +210,7 @@ export function useUIState() {
 
       return newLayout;
     });
-  }, []);
+  }, [highlightComponent]);
 
   const toggleComponent = useCallback((componentId: ComponentId) => {
     setLayout((prev) => ({
@@ -224,6 +261,7 @@ export function useUIState() {
   return {
     layout,
     visibleComponents,
+    highlightedComponents,
     applyUIChanges,
     toggleComponent,
     setTheme,
@@ -232,6 +270,7 @@ export function useUIState() {
     reportHealthIssue,
     clearHealthIssues,
     resetLayout,
+    highlightComponent,
   };
 }
 
