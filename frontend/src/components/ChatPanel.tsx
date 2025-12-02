@@ -9,6 +9,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { ChatMessage } from '../types';
+import { useTranslation } from '../i18n/TranslationContext';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -29,6 +30,7 @@ export function ChatPanel({
   onToggle,
   onClear,
 }: ChatPanelProps) {
+  const { t } = useTranslation();
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -92,7 +94,7 @@ export function ChatPanel({
           <button
             onClick={onClear}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-            title="Clear chat"
+            title={t('chat.clearChat')}
           >
             <Trash2 className="w-4 h-4 text-white/70" />
           </button>
@@ -150,7 +152,7 @@ export function ChatPanel({
               <div className="flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-accent" />
                 <span className="text-sm text-gray-500 dark:text-gray-400">
-                  Amy is thinking...
+                  {t('chat.thinking')}
                 </span>
               </div>
             </div>
@@ -189,7 +191,7 @@ export function ChatPanel({
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask Amy to customize your layout..."
+            placeholder={t('chat.placeholder')}
             disabled={isLoading}
             className="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-accent/50 focus:border-accent outline-none disabled:opacity-50"
           />

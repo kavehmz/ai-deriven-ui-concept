@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ArrowUp, ArrowDown, Loader2, AlertCircle } from 'lucide-react';
+import { useTranslation } from '../i18n/TranslationContext';
 
 interface OrderPanelProps {
   authorized: boolean;
@@ -16,6 +17,7 @@ export function OrderPanel({
   currentPrice,
   onBuy,
 }: OrderPanelProps) {
+  const { t } = useTranslation();
   const [stake, setStake] = useState(10);
   const [duration, setDuration] = useState(5);
   const [loading, setLoading] = useState<'CALL' | 'PUT' | null>(null);
@@ -60,10 +62,10 @@ export function OrderPanel({
       {/* Header */}
       <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800">
         <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
-          Rise/Fall
+          {t('orderPanel.title')}
         </h2>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-          Predict if price goes up or down
+          {t('orderPanel.subtitle')}
         </p>
       </div>
 
@@ -71,7 +73,7 @@ export function OrderPanel({
         {/* Current Price */}
         {currentPrice && (
           <div className="text-center py-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
-            <div className="text-xs text-gray-500 dark:text-gray-400">Current Price</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">{t('orderPanel.currentPrice')}</div>
             <div className="text-lg font-mono font-semibold text-gray-900 dark:text-white">
               {currentPrice.toFixed(2)}
             </div>
@@ -81,7 +83,7 @@ export function OrderPanel({
         {/* Stake Input */}
         <div>
           <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
-            Stake ({currency})
+            {t('orderPanel.stake')} ({currency})
           </label>
           <div className="relative">
             <input
@@ -118,7 +120,7 @@ export function OrderPanel({
         {/* Duration (simplified) */}
         <div>
           <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
-            Duration (ticks)
+            {t('orderPanel.duration')}
           </label>
           <div className="flex gap-2">
             {[5, 10, 15, 20].map((d) => (
@@ -140,7 +142,7 @@ export function OrderPanel({
         {/* Payout Info */}
         <div className="flex items-center justify-between py-2 px-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
           <span className="text-xs text-gray-500 dark:text-gray-400">
-            Potential payout
+            {t('orderPanel.potentialPayout')}
           </span>
           <span className="text-sm font-medium text-gray-900 dark:text-white">
             ~{(stake * 1.95).toFixed(2)} {currency}
@@ -165,7 +167,7 @@ export function OrderPanel({
         {!authorized && (
           <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
             <span className="text-xs text-yellow-600 dark:text-yellow-500">
-              Connect your Deriv account to trade
+              {t('orderPanel.connectToTrade')}
             </span>
           </div>
         )}
@@ -182,7 +184,7 @@ export function OrderPanel({
             ) : (
               <>
                 <ArrowUp className="w-5 h-5" />
-                Rise
+                {t('orderPanel.rise')}
               </>
             )}
           </button>
@@ -197,7 +199,7 @@ export function OrderPanel({
             ) : (
               <>
                 <ArrowDown className="w-5 h-5" />
-                Fall
+                {t('orderPanel.fall')}
               </>
             )}
           </button>

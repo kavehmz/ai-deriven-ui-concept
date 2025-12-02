@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowUp, ArrowDown, X, Loader2, Briefcase } from 'lucide-react';
 import { Position } from '../types';
+import { useTranslation } from '../i18n/TranslationContext';
 
 interface PositionsProps {
   positions: Position[];
@@ -9,6 +10,7 @@ interface PositionsProps {
 }
 
 export function Positions({ positions, authorized, onSell }: PositionsProps) {
+  const { t } = useTranslation();
   const [sellingId, setSellingId] = useState<number | null>(null);
 
   const openPositions = positions.filter((p) => !p.is_sold);
@@ -37,7 +39,7 @@ export function Positions({ positions, authorized, onSell }: PositionsProps) {
         <div className="flex items-center gap-2">
           <Briefcase className="w-4 h-4 text-gray-400" />
           <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
-            Open Positions
+            {t('positions.title')}
           </h2>
           {openPositions.length > 0 && (
             <span className="px-1.5 py-0.5 text-xs font-medium bg-accent/10 text-accent rounded">
@@ -61,7 +63,7 @@ export function Positions({ positions, authorized, onSell }: PositionsProps) {
               <Briefcase className="w-6 h-6 text-gray-400" />
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Connect your account to see positions
+              {t('positions.connectToSee')}
             </p>
           </div>
         ) : openPositions.length === 0 ? (
@@ -70,10 +72,10 @@ export function Positions({ positions, authorized, onSell }: PositionsProps) {
               <Briefcase className="w-6 h-6 text-gray-400" />
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              No open positions
+              {t('positions.noPositions')}
             </p>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-              Place a trade to get started
+              {t('positions.placeTradeToStart')}
             </p>
           </div>
         ) : (
@@ -123,19 +125,19 @@ export function Positions({ positions, authorized, onSell }: PositionsProps) {
 
                 <div className="grid grid-cols-3 gap-2 text-xs">
                   <div>
-                    <div className="text-gray-500 dark:text-gray-400">Buy</div>
+                    <div className="text-gray-500 dark:text-gray-400">{t('positions.buy')}</div>
                     <div className="font-medium text-gray-900 dark:text-white">
                       {position.buy_price?.toFixed(2)} {position.currency}
                     </div>
                   </div>
                   <div>
-                    <div className="text-gray-500 dark:text-gray-400">Payout</div>
+                    <div className="text-gray-500 dark:text-gray-400">{t('positions.payout')}</div>
                     <div className="font-medium text-gray-900 dark:text-white">
                       {position.payout?.toFixed(2)} {position.currency}
                     </div>
                   </div>
                   <div>
-                    <div className="text-gray-500 dark:text-gray-400">P/L</div>
+                    <div className="text-gray-500 dark:text-gray-400">{t('positions.pl')}</div>
                     <div className={`font-medium ${(position.profit || 0) >= 0 ? 'profit' : 'loss'}`}>
                       {(position.profit || 0) >= 0 ? '+' : ''}
                       {(position.profit || 0).toFixed(2)} {position.currency}

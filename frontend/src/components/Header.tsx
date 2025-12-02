@@ -10,6 +10,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { LANGUAGES } from '../types';
+import { useTranslation } from '../i18n/TranslationContext';
 
 interface HeaderProps {
   theme: 'dark' | 'light';
@@ -32,6 +33,7 @@ export function Header({
   onAuthorize,
   onLogout,
 }: HeaderProps) {
+  const { t } = useTranslation();
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
   const [showTokenInput, setShowTokenInput] = useState(false);
   const [token, setToken] = useState('');
@@ -53,10 +55,10 @@ export function Header({
         </div>
         <div className="flex items-center gap-2">
           <span className="text-lg font-semibold text-gray-900 dark:text-white">
-            Amy
+            {t('app.title')}
           </span>
           <span className="text-xs px-2 py-0.5 bg-accent/10 text-accent rounded-full font-medium">
-            AI Trading
+            {t('app.aiTrading')}
           </span>
         </div>
       </div>
@@ -134,7 +136,7 @@ export function Header({
         {/* Settings placeholder */}
         <button
           className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          title="Settings"
+          title={t('header.settings')}
         >
           <Settings className="w-5 h-5 text-gray-600 dark:text-gray-400" />
         </button>
@@ -157,7 +159,7 @@ export function Header({
               className="flex items-center gap-2 px-3 py-1.5 bg-accent hover:bg-accent-hover text-white rounded-lg transition-colors"
             >
               <LogIn className="w-4 h-4" />
-              <span className="text-sm font-medium">Connect</span>
+              <span className="text-sm font-medium">{t('header.connect')}</span>
             </button>
             
             {showTokenInput && (

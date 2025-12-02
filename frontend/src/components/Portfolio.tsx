@@ -1,5 +1,6 @@
 import { Wallet, TrendingUp, PieChart, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Account, Position } from '../types';
+import { useTranslation } from '../i18n/TranslationContext';
 
 interface PortfolioProps {
   account: Account | null;
@@ -8,6 +9,7 @@ interface PortfolioProps {
 }
 
 export function Portfolio({ account, positions, authorized }: PortfolioProps) {
+  const { t } = useTranslation();
   const openPositions = positions.filter((p) => !p.is_sold);
   const totalInvested = openPositions.reduce((sum, p) => sum + (p.buy_price || 0), 0);
   const totalPL = openPositions.reduce((sum, p) => sum + (p.profit || 0), 0);
@@ -19,7 +21,7 @@ export function Portfolio({ account, positions, authorized }: PortfolioProps) {
       <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-gray-800">
         <PieChart className="w-4 h-4 text-purple-500" />
         <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
-          Portfolio
+          {t('portfolio.title')}
         </h2>
       </div>
 
@@ -30,7 +32,7 @@ export function Portfolio({ account, positions, authorized }: PortfolioProps) {
               <Wallet className="w-6 h-6 text-gray-400" />
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Connect your account to view portfolio
+              {t('portfolio.connectToView')}
             </p>
           </div>
         ) : (
@@ -40,7 +42,7 @@ export function Portfolio({ account, positions, authorized }: PortfolioProps) {
               <div className="flex items-center gap-2 mb-2">
                 <Wallet className="w-4 h-4 text-accent" />
                 <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                  Available Balance
+                  {t('portfolio.availableBalance')}
                 </span>
               </div>
               <div className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -60,7 +62,7 @@ export function Portfolio({ account, positions, authorized }: PortfolioProps) {
               <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
                 <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 mb-1">
                   <TrendingUp className="w-3 h-3" />
-                  Invested
+                  {t('portfolio.invested')}
                 </div>
                 <div className="text-lg font-semibold text-gray-900 dark:text-white">
                   {totalInvested.toFixed(2)}
@@ -75,7 +77,7 @@ export function Portfolio({ account, positions, authorized }: PortfolioProps) {
                   ) : (
                     <ArrowDownRight className="w-3 h-3 text-red-500" />
                   )}
-                  Total P/L
+                  {t('portfolio.totalPL')}
                 </div>
                 <div
                   className={`text-lg font-semibold ${
@@ -96,7 +98,7 @@ export function Portfolio({ account, positions, authorized }: PortfolioProps) {
             <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  Open Positions
+                  {t('portfolio.openPositions')}
                 </span>
                 <span className="text-sm font-semibold text-gray-900 dark:text-white">
                   {openPositions.length}
@@ -122,10 +124,10 @@ export function Portfolio({ account, positions, authorized }: PortfolioProps) {
               
               <div className="flex justify-between text-xs mt-1 text-gray-400 dark:text-gray-500">
                 <span>
-                  {openPositions.filter((p) => (p.profit || 0) >= 0).length} profitable
+                  {openPositions.filter((p) => (p.profit || 0) >= 0).length} {t('portfolio.profitable')}
                 </span>
                 <span>
-                  {openPositions.filter((p) => (p.profit || 0) < 0).length} losing
+                  {openPositions.filter((p) => (p.profit || 0) < 0).length} {t('portfolio.losing')}
                 </span>
               </div>
             </div>
