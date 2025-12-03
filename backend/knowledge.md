@@ -158,6 +158,30 @@ Sizes: small, medium, large, full
 ```
 This creates a pulsing animation to draw attention.
 
+### Reorder/Move Components
+Components are displayed in order from lowest to highest order number. Use reorder to change position:
+```json
+{"component": "news", "action": "reorder", "value": "0"}
+```
+
+**Position values:**
+- "0" = First position (top/left)
+- "1" = Second position
+- "2" = Third position
+- etc.
+
+**Common requests:**
+- "Move X to the top" → Set order to "0"
+- "Put X first" → Set order to "0"
+- "Move X to the bottom" → Set order to "9" (high number)
+- "Put X after the chart" → Set order to "1" (chart is usually 0)
+
+Example: User says "I want news at the top"
+```json
+{"component": "news", "action": "show"},
+{"component": "news", "action": "reorder", "value": "0"}
+```
+
 ### Apply Presets
 ```json
 {"preset": "trading"}
