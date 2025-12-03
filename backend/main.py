@@ -30,6 +30,15 @@ knowledge_path = Path(__file__).parent / "knowledge.md"
 if knowledge_path.exists():
     KNOWLEDGE_BASE = knowledge_path.read_text()
 
+# Load FAQ for customer support (optional - skip if file doesn't exist)
+FAQ_BASE = ""
+faq_path = Path(__file__).parent / "support_faq.md"
+if faq_path.exists():
+    FAQ_BASE = faq_path.read_text()
+    print(f"[Amy] Loaded support FAQ ({len(FAQ_BASE)} chars)")
+else:
+    print("[Amy] No support_faq.md found - customer support FAQ disabled")
+
 
 class ComponentState(BaseModel):
     visible: bool
@@ -72,7 +81,7 @@ class ChatResponse(BaseModel):
     uiChanges: list[UIChange]
 
 
-SYSTEM_PROMPT = """You are Amy, a friendly AI trading assistant for the Deriv platform.
+SYSTEM_PROMPT_BASE = """You are Amy, a friendly AI assistant for the Deriv trading platform.
 
 ## RESPONSE FORMAT
 Always respond with valid JSON:
@@ -102,8 +111,80 @@ Global settings (use direct format):
 - For tours, go step by step and wait for user to say "next"
 """
 
-KNOWLEDGE_PROMPT = f"""## KNOWLEDGE BASE
+KNOWLEDGE_PROMPT = f"""## KNOWLEDGE BASE - Trading Education & UI Guide
+This section contains information about trading concepts, platform components, and guided tours.
+Use this when users want to learn about trading or need help navigating the platform.
+
 {KNOWLEDGE_BASE}
+"""
+
+# Build system prompt based on available knowledge sources
+if FAQ_BASE:
+    # Full prompt with both roles
+    ROLES_SECTION = """
+## YOUR ROLES
+
+### Role 1: Trading Assistant & UI Guide
+- Help users learn to trade (Rise/Fall contracts, synthetic indices)
+- Guide users through the platform with interactive tours
+- Customize the UI layout based on user preferences
+- Use the KNOWLEDGE BASE section for this
+
+### Role 2: Customer Support Agent  
+- Help users troubleshoot problems (login issues, deposit failures, account problems)
+- Answer questions about payments, withdrawals, verification
+- Provide solutions from the FAQ when users have issues
+- Use the CUSTOMER SUPPORT FAQ section for this
+
+**Be smart about which role to use:**
+- "How do I trade?" → Trading Assistant (Knowledge Base)
+- "Why can't I withdraw?" → Customer Support (FAQ)
+- "Show me the chart" → Trading Assistant (UI Control)
+- "My MT5 account is disabled" → Customer Support (FAQ)
+- "I'm new here" → Trading Assistant (Tour)
+- "I can't login" → Customer Support (FAQ)
+"""
+else:
+    # Simple prompt without customer support
+    ROLES_SECTION = """
+## YOUR ROLE: Trading Assistant & UI Guide
+- Help users learn to trade (Rise/Fall contracts, synthetic indices)
+- Guide users through the platform with interactive tours
+- Customize the UI layout based on user preferences
+- Use the KNOWLEDGE BASE section for trading education
+"""
+
+# Insert roles into system prompt
+SYSTEM_PROMPT = SYSTEM_PROMPT_BASE.replace(
+    "## RESPONSE FORMAT",
+    ROLES_SECTION + "\n## RESPONSE FORMAT"
+)
+
+# Only create FAQ prompt if FAQ content exists
+FAQ_PROMPT = ""
+if FAQ_BASE:
+    FAQ_PROMPT = f"""## CUSTOMER SUPPORT FAQ - Troubleshooting & Account Issues
+This section contains frequently asked questions from our customer support system.
+
+**IMPORTANT: When to use this FAQ:**
+- When users have PROBLEMS or ISSUES (can't login, deposit failed, account disabled, etc.)
+- When users ask about payments, withdrawals, or account verification
+- When users mention errors, bugs, or things not working
+- When users ask "why can't I..." or "how do I fix..."
+- When users have questions about MT5, cTrader, or specific Deriv products
+
+**When NOT to use this FAQ:**
+- For general trading education (use Knowledge Base instead)
+- For UI customization requests
+- For guided tours
+
+**How to use:**
+- Search this FAQ for relevant answers
+- Provide the answer naturally in your own words
+- Include relevant links if the FAQ provides them
+- If the FAQ doesn't cover their issue, acknowledge it and suggest contacting support
+
+{FAQ_BASE}
 """
 
 
@@ -249,8 +330,13 @@ async def ai_mode_response(message: str, layout: LayoutState, history: list[dict
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "system", "content": KNOWLEDGE_PROMPT},
-        {"role": "system", "content": f"CURRENT LAYOUT STATE:\n{layout_desc}"},
     ]
+    
+    # Only include FAQ if it was loaded
+    if FAQ_PROMPT:
+        messages.append({"role": "system", "content": FAQ_PROMPT})
+    
+    messages.append({"role": "system", "content": f"CURRENT LAYOUT STATE:\n{layout_desc}"})
     
     # Add conversation history (last 10 messages)
     for msg in history[-10:]:
