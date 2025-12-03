@@ -34,8 +34,21 @@ docker-compose up --build
 ```
 
 Then open:
-- **Frontend**: http://localhost:3000
-- **Backend**: http://localhost:8000
+- **App**: http://localhost:3000
+- **API**: http://localhost:3000/api (proxied to backend)
+
+### Remote Deployment (ngrok, etc.)
+
+Everything runs through a **single port (3000)**:
+- Frontend served at `/`
+- Backend API proxied at `/api`
+
+Just expose port 3000 and everything works:
+```bash
+ngrok http 3000
+# Your URL: https://abc123.ngrok-free.app
+# API is at: https://abc123.ngrok-free.app/api
+```
 
 ### Enable AI Mode (Optional)
 

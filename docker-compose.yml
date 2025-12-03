@@ -5,8 +5,10 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
+    # Port 8000 exposed internally, proxied via frontend nginx at /api
+    # Uncomment below for direct backend access (debugging)
+    # ports:
+    #   - "8000:8000"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     restart: unless-stopped

@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
 import { ChatMessage, ChatResponse, LayoutState, UIChange } from '../types';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Use relative URL so it works with any domain/proxy setup
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 interface UseChatOptions {
   onUIChanges: (changes: UIChange[]) => void;
