@@ -12,7 +12,7 @@ export function useChat({ onUIChanges, getLayoutState }: UseChatOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
-      content: "Hi! I'm Amy, your trading assistant. I can help customize your workspace - tell me what you'd like to see or hide, change themes, or set up layouts for different trading styles. What would you like to do?",
+      content: "Hi! I'm Amy, your trading assistant! 👋\n\n**New here?** Say \"I'm a beginner\" for a guided tour to place your first trade!\n\n**Experienced?** Say \"Expert tour\" to explore all features.\n\nI can also customize your workspace, change themes, and answer any trading questions. What would you like to do?",
       timestamp: new Date(),
     },
   ]);
@@ -117,7 +117,7 @@ export function useChat({ onUIChanges, getLayoutState }: UseChatOptions) {
     setMessages([
       {
         role: 'assistant',
-        content: "Hi! I'm Amy, your trading assistant. I can help customize your workspace - tell me what you'd like to see or hide, change themes, or set up layouts for different trading styles. What would you like to do?",
+        content: "Hi! I'm Amy, your trading assistant! 👋\n\n**New here?** Say \"I'm a beginner\" for a guided tour to place your first trade!\n\n**Experienced?** Say \"Expert tour\" to explore all features.\n\nI can also customize your workspace, change themes, and answer any trading questions. What would you like to do?",
         timestamp: new Date(),
       },
     ]);
