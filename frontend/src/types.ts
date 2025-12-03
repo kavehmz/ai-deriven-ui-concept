@@ -23,6 +23,17 @@ export interface UIChange {
   preset?: 'trading' | 'minimal' | 'analysis' | 'monitoring';
 }
 
+export interface PositionSummary {
+  contractId: number;
+  contractType: string;  // CALL, PUT, etc.
+  symbol: string;
+  buyPrice: number;
+  currentProfit: number;
+  isWinning: boolean;
+  entrySpot?: number;
+  currentSpot?: number;
+}
+
 export interface UserContext {
   isAuthenticated: boolean;
   accountType?: 'demo' | 'real';
@@ -32,6 +43,9 @@ export interface UserContext {
   openPositionsCount?: number;
   totalProfit?: number;
   totalInvested?: number;
+  winningCount?: number;
+  losingCount?: number;
+  positions?: PositionSummary[];  // Individual position details
 }
 
 export interface ChatMessage {
@@ -87,9 +101,10 @@ export interface MarketSymbol {
   market_display_name: string;
 }
 
-export type ComponentId = 
+export type ComponentId =
   | 'chart'
-  | 'orderPanel'
+  | 'riseFallPanel'
+  | 'higherLowerPanel'
   | 'positions'
   | 'watchlist'
   | 'marketOverview'
@@ -100,7 +115,8 @@ export type ComponentId =
 
 export const COMPONENT_NAMES: Record<ComponentId, string> = {
   chart: 'Price Chart',
-  orderPanel: 'Order Panel',
+  riseFallPanel: 'Rise/Fall',
+  higherLowerPanel: 'Higher/Lower',
   positions: 'Open Positions',
   watchlist: 'Watchlist',
   marketOverview: 'Market Overview',
@@ -126,20 +142,22 @@ export const PRESETS: Record<string, { components: Partial<Record<ComponentId, {
   trading: {
     components: {
       chart: { visible: true, size: 'large' },
-      orderPanel: { visible: true, size: 'medium' },
+      riseFallPanel: { visible: true, size: 'medium' },
+      higherLowerPanel: { visible: false, size: 'medium' },
       positions: { visible: true, size: 'medium' },
       clock: { visible: true, size: 'small' },
       watchlist: { visible: false, size: 'small' },
       marketOverview: { visible: false, size: 'small' },
       news: { visible: false, size: 'small' },
-      portfolio: { visible: false, size: 'small' },
+      portfolio: { visible: true, size: 'small' },
       calculator: { visible: false, size: 'small' },
     },
   },
   minimal: {
     components: {
       chart: { visible: true, size: 'large' },
-      orderPanel: { visible: true, size: 'medium' },
+      riseFallPanel: { visible: true, size: 'medium' },
+      higherLowerPanel: { visible: false, size: 'small' },
       positions: { visible: false, size: 'small' },
       clock: { visible: false, size: 'small' },
       watchlist: { visible: false, size: 'small' },
@@ -152,7 +170,8 @@ export const PRESETS: Record<string, { components: Partial<Record<ComponentId, {
   analysis: {
     components: {
       chart: { visible: true, size: 'large' },
-      orderPanel: { visible: false, size: 'medium' },
+      riseFallPanel: { visible: false, size: 'small' },
+      higherLowerPanel: { visible: false, size: 'small' },
       positions: { visible: false, size: 'small' },
       clock: { visible: false, size: 'small' },
       watchlist: { visible: true, size: 'medium' },
@@ -165,7 +184,8 @@ export const PRESETS: Record<string, { components: Partial<Record<ComponentId, {
   monitoring: {
     components: {
       chart: { visible: true, size: 'medium' },
-      orderPanel: { visible: false, size: 'medium' },
+      riseFallPanel: { visible: false, size: 'small' },
+      higherLowerPanel: { visible: false, size: 'small' },
       positions: { visible: true, size: 'large' },
       clock: { visible: false, size: 'small' },
       watchlist: { visible: false, size: 'small' },

@@ -1,7 +1,8 @@
 import { useCallback } from 'react';
 import { Header } from './components/Header';
 import { PriceChart } from './components/PriceChart';
-import { OrderPanel } from './components/OrderPanel';
+import { RiseFallPanel } from './components/RiseFallPanel';
+import { HigherLowerPanel } from './components/HigherLowerPanel';
 import { Positions } from './components/Positions';
 import { Watchlist } from './components/Watchlist';
 import { MarketOverview } from './components/MarketOverview';
@@ -13,7 +14,7 @@ import { ChatPanel } from './components/ChatPanel';
 import { useUIState } from './hooks/useUIState';
 import { useDerivAPI } from './hooks/useDerivAPI';
 import { useChat } from './hooks/useChat';
-import { ComponentId, UserContext } from './types';
+import { ComponentId, UserContext, PositionSummary } from './types';
 import { TranslationProvider } from './i18n/TranslationContext';
 
 function App() {
@@ -49,6 +50,24 @@ function App() {
     const totalProfit = openPositions.reduce((sum, p) => sum + (p.profit || 0), 0);
     const totalInvested = openPositions.reduce((sum, p) => sum + (p.buy_price || 0), 0);
     
+    // Count winners and losers
+    const winningCount = openPositions.filter((p) => (p.profit || 0) > 0).length;
+    const losingCount = openPositions.filter((p) => (p.profit || 0) < 0).length;
+    
+    // Build individual position summaries (limit to 10 most recent)
+    const positionSummaries: PositionSummary[] = openPositions
+      .slice(0, 10)
+      .map((p) => ({
+        contractId: p.contract_id,
+        contractType: p.contract_type || 'Unknown',
+        symbol: p.underlying || 'Unknown',
+        buyPrice: p.buy_price || 0,
+        currentProfit: p.profit || 0,
+        isWinning: (p.profit || 0) > 0,
+        entrySpot: p.entry_spot,
+        currentSpot: p.current_spot,
+      }));
+    
     return {
       isAuthenticated: authorized,
       accountType: account?.loginid?.startsWith('VRTC') ? 'demo' : 'real',
@@ -58,6 +77,9 @@ function App() {
       openPositionsCount: openPositions.length,
       totalProfit,
       totalInvested,
+      winningCount,
+      losingCount,
+      positions: positionSummaries,
     };
   }, [authorized, account, positions]);
 
@@ -79,8 +101,12 @@ function App() {
     setTheme(layout.theme === 'dark' ? 'light' : 'dark');
   };
 
-  const handleBuy = async (type: 'CALL' | 'PUT', stake: number) => {
-    await buyContract(type, stake);
+  const handleRiseFallBuy = async (type: 'CALL' | 'PUT', stake: number, duration: number, durationUnit: 't' | 'm' | 'h' | 'd') => {
+    await buyContract(type, stake, duration, durationUnit);
+  };
+
+  const handleHigherLowerBuy = async (type: 'HIGHER' | 'LOWER', stake: number, duration: number, durationUnit: 't' | 'm' | 'h' | 'd', barrier: number) => {
+    await buyContract(type, stake, duration, durationUnit, barrier);
   };
 
   const handleSell = async (contractId: number) => {
@@ -95,7 +121,8 @@ function App() {
   const renderComponent = (componentId: ComponentId) => {
     const minHeights: Record<ComponentId, string> = {
       chart: 'min-h-[350px]',
-      orderPanel: 'min-h-[400px]',
+      riseFallPanel: 'min-h-[420px]',
+      higherLowerPanel: 'min-h-[480px]',
       positions: 'min-h-[250px]',
       watchlist: 'min-h-[300px]',
       marketOverview: 'min-h-[300px]',
@@ -116,13 +143,22 @@ function App() {
           theme={layout.theme}
         />
       ),
-      orderPanel: (
-        <OrderPanel
+      riseFallPanel: (
+        <RiseFallPanel
           authorized={authorized}
           balance={account?.balance || 0}
           currency={account?.currency || 'USD'}
           currentPrice={tick?.quote || null}
-          onBuy={handleBuy}
+          onBuy={handleRiseFallBuy}
+        />
+      ),
+      higherLowerPanel: (
+        <HigherLowerPanel
+          authorized={authorized}
+          balance={account?.balance || 0}
+          currency={account?.currency || 'USD'}
+          currentPrice={tick?.quote || null}
+          onBuy={handleHigherLowerBuy}
         />
       ),
       positions: (

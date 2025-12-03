@@ -100,11 +100,17 @@ export function useDerivAPI() {
 
   const handleMessage = useCallback((data: Record<string, unknown>) => {
     if (data.error) {
+      const errorMsg = (data.error as { message: string }).message || 'API error';
       console.error('Deriv API error:', data.error);
       setState((prev) => ({ 
         ...prev, 
-        error: (data.error as { message: string }).message || 'API error',
+        error: errorMsg,
       }));
+      
+      // Dispatch error event so pending promises can handle it
+      window.dispatchEvent(
+        new CustomEvent('deriv-error', { detail: { error: data.error, msg_type: data.msg_type } })
+      );
       return;
     }
 
@@ -320,16 +326,41 @@ export function useDerivAPI() {
   }, [send]);
 
   const buyContract = useCallback(
-    async (contractType: 'CALL' | 'PUT', stake: number, duration = 5) => {
+    async (contractType: 'CALL' | 'PUT' | 'HIGHER' | 'LOWER', stake: number, duration = 5, durationUnit: 't' | 'm' | 'h' | 'd' = 't', barrier?: number) => {
       return new Promise<{ contract_id: number; buy_price: number }>((resolve, reject) => {
+        let timeoutId: ReturnType<typeof setTimeout>;
+        
+        // Error handler for proposal errors
+        const errorHandler = (e: CustomEvent) => {
+          console.error('[Deriv] Proposal/Buy error:', e.detail);
+          cleanup();
+          reject(new Error(e.detail?.error?.message || 'Contract error'));
+        };
+
+        const cleanup = () => {
+          clearTimeout(timeoutId);
+          window.removeEventListener('deriv-proposal', proposalHandler as EventListener);
+          window.removeEventListener('deriv-error', errorHandler as EventListener);
+        };
+
         // First get a proposal
         const proposalHandler = (e: CustomEvent) => {
           window.removeEventListener('deriv-proposal', proposalHandler as EventListener);
-          const proposal = e.detail as { id: string };
+          const proposal = e.detail as { id: string; error?: { message: string } };
+          
+          // Check for error in proposal response
+          if (proposal.error) {
+            cleanup();
+            reject(new Error(proposal.error.message));
+            return;
+          }
+          
+          console.log('[Deriv] Proposal received:', proposal);
           
           // Now buy the contract
           const buyHandler = (e: CustomEvent) => {
             window.removeEventListener('deriv-buy', buyHandler as EventListener);
+            cleanup();
             resolve(e.detail);
           };
           
@@ -338,22 +369,37 @@ export function useDerivAPI() {
         };
         
         window.addEventListener('deriv-proposal', proposalHandler as EventListener);
+        window.addEventListener('deriv-error', errorHandler as EventListener);
         
-        send({
+        // Map HIGHER/LOWER to CALL/PUT (Deriv API uses CALL/PUT with barrier)
+        let apiContractType: 'CALL' | 'PUT' = 
+          contractType === 'HIGHER' || contractType === 'CALL' ? 'CALL' : 'PUT';
+        
+        // Build proposal request
+        const proposalRequest: Record<string, unknown> = {
           proposal: 1,
           amount: stake,
           basis: 'stake',
-          contract_type: contractType,
+          contract_type: apiContractType,
           currency: state.account?.currency || 'USD',
           duration,
-          duration_unit: 't',
+          duration_unit: durationUnit,
           symbol: state.selectedSymbol,
-        });
+        };
+
+        // Add barrier for Higher/Lower contracts (relative barrier format)
+        if ((contractType === 'HIGHER' || contractType === 'LOWER') && barrier !== undefined) {
+          // Use relative barrier format: +X or -X from spot price
+          proposalRequest.barrier = barrier.toString();
+        }
+
+        console.log('[Deriv] Sending proposal:', proposalRequest);
+        send(proposalRequest);
 
         // Timeout after 10 seconds
-        setTimeout(() => {
-          window.removeEventListener('deriv-proposal', proposalHandler as EventListener);
-          reject(new Error('Buy contract timeout'));
+        timeoutId = setTimeout(() => {
+          cleanup();
+          reject(new Error('Buy contract timeout - no response from server'));
         }, 10000);
       });
     },

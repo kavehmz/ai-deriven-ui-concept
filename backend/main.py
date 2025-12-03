@@ -54,6 +54,17 @@ class LayoutState(BaseModel):
     healthIssues: Optional[list[str]] = []
 
 
+class PositionSummary(BaseModel):
+    contractId: int
+    contractType: str
+    symbol: str
+    buyPrice: float
+    currentProfit: float
+    isWinning: bool
+    entrySpot: Optional[float] = None
+    currentSpot: Optional[float] = None
+
+
 class UserContext(BaseModel):
     isAuthenticated: bool = False
     accountType: Optional[str] = None  # demo, real
@@ -63,6 +74,9 @@ class UserContext(BaseModel):
     openPositionsCount: Optional[int] = None
     totalProfit: Optional[float] = None
     totalInvested: Optional[float] = None
+    winningCount: Optional[int] = None
+    losingCount: Optional[int] = None
+    positions: Optional[list[PositionSummary]] = None
 
 
 class ChatRequest(BaseModel):
@@ -227,7 +241,8 @@ def get_layout_description(layout: LayoutState) -> str:
 # Component name mappings
 COMPONENT_ALIASES = {
     "chart": ["chart", "price chart", "graph"],
-    "orderPanel": ["order panel", "order", "trading panel"],
+    "riseFallPanel": ["rise fall", "rise/fall", "risefall", "simple trade", "up down"],
+    "higherLowerPanel": ["higher lower", "higher/lower", "higherlower", "barrier trade"],
     "positions": ["positions", "open positions", "trades"],
     "watchlist": ["watchlist", "favorites", "symbols"],
     "marketOverview": ["market overview", "market", "overview"],
@@ -365,6 +380,17 @@ def get_user_context_description(user: Optional[UserContext]) -> str:
     if user.openPositionsCount and user.openPositionsCount > 0:
         lines.append(f"- Total Invested: {user.totalInvested:.2f} {user.currency}" if user.totalInvested else "")
         lines.append(f"- Current P/L: {'+' if (user.totalProfit or 0) >= 0 else ''}{user.totalProfit:.2f} {user.currency}" if user.totalProfit is not None else "")
+        lines.append(f"- Winning contracts: {user.winningCount or 0}")
+        lines.append(f"- Losing contracts: {user.losingCount or 0}")
+        
+        # Add individual position details
+        if user.positions:
+            lines.append("")
+            lines.append("Individual Positions:")
+            for i, pos in enumerate(user.positions, 1):
+                status = "✅ WINNING" if pos.isWinning else "❌ LOSING"
+                profit_str = f"+{pos.currentProfit:.2f}" if pos.currentProfit >= 0 else f"{pos.currentProfit:.2f}"
+                lines.append(f"  {i}. {pos.contractType} on {pos.symbol}: {status} ({profit_str} {user.currency})")
     
     return "\n".join(filter(None, lines))
 

@@ -42,9 +42,9 @@ Traditional UIs are static—designed once, used by everyone the same way. But n
 │                                                             │
 │   User Message ──────────────────────────────► Backend      │
 │   + Current Layout State                        (AI)        │
-│   + Layout Health Report                          │         │
-│                                                   │         │
-│   ◄──────────────────────────────────────────────┘         │
+│   + User Context (account, positions)            │          │
+│                                                  │          │
+│   ◄──────────────────────────────────────────────┘          │
 │   AI Response                                               │
 │   + UI Change Instructions                                  │
 │                                                             │
@@ -65,15 +65,31 @@ A functional trading platform using **real Deriv API data** with AI-controlled l
 **Visual Reference**: See `images/shot1.png` - the Deriv Trader interface
 
 **Components** (AI can control each):
-- **Price Chart** - Real-time candlestick chart (use lightweight-charts or similar)
-- **Order Panel** - Buy Rise/Fall contracts with stake input
-- **Open Positions** - Live positions with P/L updates
-- **Watchlist** - Favorite symbols with live prices
-- **Market Overview** - Market summary and trends
-- **News** - Market news and updates (can be mocked)
-- **Portfolio** - Account balance and summary
-- **World Clock** - Multiple timezone display
-- **Calculator** - Trading calculator
+
+| Component ID | Name | Description |
+|--------------|------|-------------|
+| `chart` | Price Chart | Real-time candlestick chart |
+| `riseFallPanel` | Rise/Fall Panel | Simple up/down trading (CALL/PUT) |
+| `higherLowerPanel` | Higher/Lower Panel | Barrier-based trading |
+| `positions` | Open Positions | Live positions with P/L updates |
+| `watchlist` | Watchlist | Favorite symbols with live prices |
+| `marketOverview` | Market Overview | Market summary and trends |
+| `news` | News | Market news and updates (can be mocked) |
+| `portfolio` | Portfolio | Account balance and summary |
+| `clock` | World Clock | Multiple timezone display |
+| `calculator` | Calculator | Trading calculator |
+
+**Important**: Rise/Fall and Higher/Lower are **separate panels** that can be shown simultaneously. This allows users to have both trading modes visible at once.
+
+**Contract Types**:
+- **Rise/Fall** (`riseFallPanel`): Predict if price goes UP (Rise/CALL) or DOWN (Fall/PUT) from entry price
+- **Higher/Lower** (`higherLowerPanel`): Predict if price ends ABOVE or BELOW a custom barrier price
+
+**Duration Options**: Both panels support multiple duration units:
+- Ticks: 5, 10, 15, 20
+- Minutes: 1, 2, 5, 15, 30
+- Hours: 1, 2, 4, 8, 12
+- Days: 1, 2, 3, 7
 
 **Key UI Requirements**:
 - Modular component architecture
@@ -83,22 +99,50 @@ A functional trading platform using **real Deriv API data** with AI-controlled l
 - Multi-language support with RTL for Arabic
 - Customizable accent colors
 - Persist UI state in localStorage
+- **Component highlighting**: Flash/pulse animation to draw user attention during guidance
 
 **AI Controls**:
 - Component visibility (show/hide)
 - Component sizing (small/medium/large/full-width)
-- Component ordering
+- Component ordering (reorder with numeric position: 0 = first)
+- Component highlighting (flash animation for tutorials)
 - Theme, language, accent color
+- Navigation to external URLs
 
 ### 2. Backend Service
 
 Python FastAPI service that processes conversations and returns UI instructions.
 
 **Core Functionality**:
-- Chat endpoint that accepts user message + current layout state
+- Chat endpoint that accepts user message + current layout state + user context
 - Returns both conversational response AND UI change instructions
 - Uses OpenAI (GPT-4) for intelligent responses
 - Demo mode that works without API key (pattern matching fallback)
+
+**Knowledge System** (AI-Driven, Not Hardcoded):
+
+The AI's behavior is controlled through markdown knowledge files, not Python code:
+
+| File | Purpose | Required |
+|------|---------|----------|
+| `backend/knowledge.md` | Trading education, UI guidance, guided tours | Yes |
+| `backend/support_faq.md` | Customer support FAQ | No (optional) |
+
+If `support_faq.md` exists, Amy acts as both trading assistant AND customer support. If not, she's just a trading assistant.
+
+**Important**: Tours, guidance, and support answers should be defined in these markdown files in plain English. The AI interprets and delivers them naturally. Do NOT hardcode conversation flows in Python.
+
+**User Context**: The AI receives detailed user information with every message:
+- Authentication status (logged in or not)
+- Account type (demo/real)
+- Account balance and currency
+- **Individual position details** (contract type, symbol, P/L, winning/losing status)
+- Winning/losing position counts
+
+This enables Amy to answer questions like:
+- "Do I have any winners?" → Lists specific winning contracts
+- "How is my V75 trade doing?" → Finds and reports on that specific position
+- "What's my balance?" → Reports current balance
 
 **Critical: AI Must Be Layout-Aware**
 
@@ -109,17 +153,28 @@ The AI must receive the complete current layout state with every message:
 - Theme, language, accent color
 - Layout health issues (overflow, cramped content)
 
-This enables intelligent responses like:
-- "The chart is already hidden" (instead of redundantly hiding it)
-- "I notice your order panel is cramped, want me to fix it?"
-- "You're already in dark mode"
+### 3. Guided Tours
 
-**Layout Health Monitoring**:
-- Frontend measures actual component dimensions
-- Detects content overflow and cramped components
-- Reports issues to AI so it can proactively suggest fixes
+Amy provides interactive guided tours controlled via `knowledge.md`:
 
-### 3. Deriv API Integration
+**Beginner Tour**:
+- Triggered by: "I'm new", "beginner", "help me get started"
+- Hides all components, reveals them step-by-step
+- Uses highlight action to draw attention to each component
+- Guides user to place their first trade
+- User says "next" to proceed through steps
+
+**Expert Tour**:
+- Triggered by: "I'm experienced", "show me all features"
+- Quick overview of all platform capabilities
+- Demonstrates advanced features like Higher/Lower, calculator
+- Ends with pro tips
+
+**Tour Exit**:
+- User can say "stop", "enough", "I get it" anytime
+- Amy acknowledges and restores the layout to trading preset
+
+### 4. Deriv API Integration
 
 Connect to real Deriv trading infrastructure.
 
@@ -134,16 +189,9 @@ Connect to real Deriv trading infrastructure.
 - Authorization with user's personal token
 - Account balance and portfolio
 - Open positions with live P/L
-- Buy/sell Rise/Fall contracts
+- Buy/sell Rise/Fall and Higher/Lower contracts
 
-**Instruments**: Volatility indices (V10, V25, V50, V75, V100, etc.)
-
-### 4. Drop-in SDK (Optional/Stretch Goal)
-
-A JavaScript SDK that brings Amy's UI control to any website with minimal integration:
-- Floating chat widget
-- Mark controllable elements with data attributes
-- AI can show/hide/resize any marked element
+**Instruments**: Volatility indices (R_10, R_25, R_50, R_75, R_100, etc.)
 
 ---
 
@@ -155,18 +203,31 @@ A JavaScript SDK that brings Amy's UI control to any website with minimal integr
 |---------|---------|-----------------|
 | Visibility | show/hide | "Hide the news panel" |
 | Sizing | small, medium, large, full | "Make the chart bigger" |
-| Ordering | move components | "Put positions at the top" |
+| Ordering | reorder (0=first, higher=later) | "Put positions at the top" |
+| Highlight | flash/pulse animation | "Show me where to trade" |
 | Theme | dark/light | "Switch to dark mode" |
 | Language | en, es, fr, de, zh, ar, ja, pt, ru | "Switch to Spanish" |
 | Accent Color | any hex color | "Change accent to blue" |
 | Presets | trading, minimal, analysis, monitoring | "Set up for day trading" |
+| Navigation | open URL in new tab | "Take me to deposit page" |
 
 ### Layout Presets
 
-- **trading**: Chart + Order Panel + Positions + Clock
-- **minimal**: Chart + Order Panel only
+- **trading**: Chart + Rise/Fall Panel + Positions + Clock + Portfolio
+- **minimal**: Chart + Rise/Fall Panel only
 - **analysis**: Chart + Watchlist + News + Market Overview
 - **monitoring**: Positions (large) + Chart + Portfolio
+
+### Navigation URLs Amy Can Use
+
+| Action | URL |
+|--------|-----|
+| Deposit | https://app.deriv.com/cashier/deposit |
+| Withdraw | https://app.deriv.com/cashier/withdrawal |
+| API Token | https://app.deriv.com/account/api-token |
+| Account Settings | https://app.deriv.com/account/personal-details |
+| Trading History | https://app.deriv.com/reports/statement |
+| Help Center | https://deriv.com/help-centre |
 
 ### Smart Behaviors
 
@@ -175,6 +236,8 @@ A JavaScript SDK that brings Amy's UI control to any website with minimal integr
 3. **Conversational**: Explains changes naturally
 4. **Efficient**: Only changes what needs changing
 5. **Helpful**: Suggests layouts based on user's stated goals
+6. **Personalized**: Uses user's account data to give specific answers
+7. **Educational**: Guides beginners step-by-step with highlighting
 
 ---
 
@@ -190,19 +253,41 @@ A JavaScript SDK that brings Amy's UI control to any website with minimal integr
 
 **Contextual Setup**:
 > **User**: "I'm day trading today"  
-> **Amy**: "Perfect! I've set up a trading layout - large chart, order panel ready, and your positions visible."
+> **Amy**: "Perfect! I've set up a trading layout - large chart, Rise/Fall panel ready, and your positions visible."
 
-**Proactive Health Fix**:
-> **User**: "Hi"  
-> **Amy**: "Hello! I notice your order panel is a bit cramped. Would you like me to give it more space?"
+**Trading Guidance**:
+> **User**: "I'm new here"  
+> **Amy**: "Welcome! Let me give you a quick tour. I've simplified the view to just the chart. Watch the price move up and down - that's what you'll be predicting! Say 'next' when ready."
 
-**Describe Current State**:
-> **User**: "What's my current layout?"  
-> **Amy**: "You have 5 components visible: large chart, medium order panel, and small positions, portfolio, and clock. News and watchlist are hidden. Dark mode, English."
+**Portfolio Questions**:
+> **User**: "Do I have any winners?"  
+> **Amy**: "Yes! You have 2 winning contracts: CALL on R_10 (+$1.50) and PUT on R_75 (+$0.80). You also have 3 losing positions totaling -$4.26."
+
+**Navigation**:
+> **User**: "I want to deposit money"  
+> **Amy**: "I'll open the deposit page for you!" *(opens Deriv cashier in new tab)*
+
+**Tour Exit**:
+> **User**: "Ok that's enough"  
+> **Amy**: "No problem! I've restored your workspace. Feel free to ask if you need help with anything specific!"
 
 ---
 
 ## Technical Setup
+
+### Architecture
+
+Everything runs through a **single port (3000)** for easy deployment:
+
+```
+Port 3000 (nginx)
+      │
+      ├── /api/* → Backend (FastAPI on port 8000 internal)
+      │
+      └── /* → Frontend (React static files)
+```
+
+This allows simple proxy/tunnel setup (e.g., ngrok) with just one port.
 
 ### Running the POC
 
@@ -210,11 +295,11 @@ A JavaScript SDK that brings Amy's UI control to any website with minimal integr
 docker-compose up --build
 ```
 
-| Service | URL |
-|---------|-----|
-| Backend | http://localhost:8000 |
-| Frontend | http://localhost:3000 |
-| SDK Demo | http://localhost:4000 (if implemented) |
+| Endpoint | Description |
+|----------|-------------|
+| http://localhost:3000 | Frontend app |
+| http://localhost:3000/api | Backend API (proxied) |
+| http://localhost:3000/api/health | Health check |
 
 ### Environment Variables
 
@@ -227,9 +312,8 @@ docker-compose up --build
 The Deriv API token is **not** a backend environment variable—it's provided by each user through the UI:
 
 1. User enters their personal Deriv API token in the frontend
-2. Frontend sends the token to backend with requests that need authentication
-3. Backend uses the token to call Deriv API on the user's behalf
-4. Each user trades with their own account
+2. Frontend connects directly to Deriv WebSocket with the token
+3. Each user trades with their own account
 
 This enables:
 - Real portfolio/positions display for the logged-in user
@@ -240,6 +324,35 @@ Without a token, the app still works in "view-only" mode with public market data
 
 ---
 
+## File Structure
+
+```
+├── backend/
+│   ├── main.py              # FastAPI service
+│   ├── knowledge.md         # Trading knowledge & tour instructions
+│   ├── support_faq.md       # Customer support FAQ (optional)
+│   ├── requirements.txt
+│   └── Dockerfile
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── RiseFallPanel.tsx    # Rise/Fall trading
+│   │   │   ├── HigherLowerPanel.tsx # Higher/Lower trading
+│   │   │   ├── PriceChart.tsx
+│   │   │   ├── Positions.tsx
+│   │   │   └── ...
+│   │   ├── hooks/
+│   │   │   ├── useDerivAPI.ts   # Deriv WebSocket
+│   │   │   ├── useUIState.ts    # Layout state management
+│   │   │   └── useChat.ts       # Chat with backend
+│   │   └── i18n/                # Translations
+│   ├── nginx.conf               # Proxies /api to backend
+│   └── Dockerfile
+└── docker-compose.yml
+```
+
+---
+
 ## Success Criteria
 
 The POC is successful when:
@@ -247,12 +360,15 @@ The POC is successful when:
 1. ✅ User can chat with Amy and see UI change in real-time
 2. ✅ No empty spaces when components are hidden
 3. ✅ Real Deriv market data displays in charts
-4. ✅ Can execute Rise/Fall trades (with API token)
+4. ✅ Can execute Rise/Fall AND Higher/Lower trades (with API token)
 5. ✅ AI proactively notices and offers to fix layout issues
 6. ✅ AI is fully layout-aware and gives contextual responses
 7. ✅ Works in dark and light themes
 8. ✅ Language switching works (including RTL for Arabic)
 9. ✅ Single `docker-compose up` starts everything
+10. ✅ Guided tours work for beginners and experts
+11. ✅ Amy can answer questions about individual positions
+12. ✅ Amy can redirect users to external Deriv pages
 
 ---
 
@@ -265,7 +381,11 @@ These are lessons learned from previous iterations - guidelines, not requirement
 - **Buy flow**: Send `proposal` request first, then `buy` with the proposal ID
 - **Live P/L**: Subscribe to `proposal_open_contract` for real-time position updates
 - **Layout gaps**: CSS Grid with `grid-auto-flow: dense` helps fill empty spaces
-- **Protected components**: Order Panel and Calculator need minimum sizes - don't make them too small
+- **Protected components**: Trading panels and Calculator need minimum sizes - don't make them too small
+- **Higher/Lower contracts**: Use CALL/PUT with a barrier parameter, not separate contract types
+- **Error handling**: Dispatch error events from WebSocket handler so Promises can catch API errors
+- **Tour instructions**: Keep in knowledge.md, not hardcoded in Python
+- **Translation keys**: Can use descriptive keys like `orderPanel.stake` even if component ID changed
 
 ---
 

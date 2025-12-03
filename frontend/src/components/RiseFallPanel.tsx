@@ -2,27 +2,47 @@ import { useState } from 'react';
 import { ArrowUp, ArrowDown, Loader2, AlertCircle } from 'lucide-react';
 import { useTranslation } from '../i18n/TranslationContext';
 
-interface OrderPanelProps {
+type DurationUnit = 't' | 'm' | 'h' | 'd';
+
+interface RiseFallPanelProps {
   authorized: boolean;
   balance: number;
   currency: string;
   currentPrice: number | null;
-  onBuy: (type: 'CALL' | 'PUT', stake: number) => Promise<void>;
+  onBuy: (type: 'CALL' | 'PUT', stake: number, duration: number, durationUnit: DurationUnit) => Promise<void>;
 }
 
-export function OrderPanel({
+const DURATION_UNITS: { id: DurationUnit; label: string; options: number[] }[] = [
+  { id: 't', label: 'Ticks', options: [5, 10, 15, 20] },
+  { id: 'm', label: 'Minutes', options: [1, 2, 5, 15, 30] },
+  { id: 'h', label: 'Hours', options: [1, 2, 4, 8, 12] },
+  { id: 'd', label: 'Days', options: [1, 2, 3, 7] },
+];
+
+export function RiseFallPanel({
   authorized,
   balance,
   currency,
   currentPrice,
   onBuy,
-}: OrderPanelProps) {
+}: RiseFallPanelProps) {
   const { t } = useTranslation();
   const [stake, setStake] = useState(10);
+  const [durationUnit, setDurationUnit] = useState<DurationUnit>('t');
   const [duration, setDuration] = useState(5);
   const [loading, setLoading] = useState<'CALL' | 'PUT' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const currentDurationUnit = DURATION_UNITS.find(u => u.id === durationUnit) || DURATION_UNITS[0];
+
+  const handleDurationUnitChange = (unit: DurationUnit) => {
+    setDurationUnit(unit);
+    const unitConfig = DURATION_UNITS.find(u => u.id === unit);
+    if (unitConfig) {
+      setDuration(unitConfig.options[0]);
+    }
+  };
 
   const handleBuy = async (type: 'CALL' | 'PUT') => {
     if (!authorized) {
@@ -45,7 +65,7 @@ export function OrderPanel({
     setSuccess(null);
 
     try {
-      await onBuy(type, stake);
+      await onBuy(type, stake, duration, durationUnit);
       setSuccess(`${type === 'CALL' ? 'Rise' : 'Fall'} contract purchased!`);
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
@@ -60,12 +80,12 @@ export function OrderPanel({
   return (
     <div className="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-green-500/10 to-red-500/10">
         <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
-          {t('orderPanel.title')}
+          Rise/Fall
         </h2>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-          {t('orderPanel.subtitle')}
+          Predict if price goes up or down
         </p>
       </div>
 
@@ -117,13 +137,32 @@ export function OrderPanel({
           </div>
         </div>
 
-        {/* Duration (simplified) */}
+        {/* Duration */}
         <div>
           <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
             {t('orderPanel.duration')}
           </label>
+          
+          {/* Duration Unit Tabs */}
+          <div className="flex gap-1 mb-2 p-1 bg-gray-100 dark:bg-gray-800 rounded-lg">
+            {DURATION_UNITS.map((unit) => (
+              <button
+                key={unit.id}
+                onClick={() => handleDurationUnitChange(unit.id)}
+                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  durationUnit === unit.id
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                {unit.label}
+              </button>
+            ))}
+          </div>
+          
+          {/* Duration Options */}
           <div className="flex gap-2">
-            {[5, 10, 15, 20].map((d) => (
+            {currentDurationUnit.options.map((d) => (
               <button
                 key={d}
                 onClick={() => setDuration(d)}
