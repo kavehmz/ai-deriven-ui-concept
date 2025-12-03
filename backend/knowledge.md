@@ -138,7 +138,26 @@ World clock showing major financial centers. Synthetic indices are 24/7.
 
 ## UI CONTROL CAPABILITIES
 
-You can control the interface by including uiChanges in your response:
+You can control the interface by including uiChanges in your response.
+
+### IMPORTANT: Exact Component IDs
+Always use these EXACT component IDs (case-sensitive):
+| User says | Use this ID |
+|-----------|-------------|
+| chart, price chart, graph | `chart` |
+| order panel, trading panel, buy/sell | `orderPanel` |
+| positions, open positions, trades | `positions` |
+| watchlist, favorites, symbols | `watchlist` |
+| market overview, market summary | `marketOverview` |
+| news, market news | `news` |
+| portfolio, balance, account, wallet | `portfolio` |
+| clock, world clock, time | `clock` |
+| calculator, calc | `calculator` |
+
+**Examples:**
+- User: "show my portfolio" → `{"component": "portfolio", "action": "show"}`
+- User: "hide market overview" → `{"component": "marketOverview", "action": "hide"}`
+- User: "move the order panel to top" → `{"component": "orderPanel", "action": "reorder", "value": "0"}`
 
 ### Show/Hide Components
 ```json
