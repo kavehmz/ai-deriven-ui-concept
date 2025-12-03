@@ -14,12 +14,24 @@ export interface LayoutState {
 
 export interface UIChange {
   component?: string;
-  action?: 'show' | 'hide' | 'resize' | 'reorder' | 'highlight' | 'set';
+  action?: 'show' | 'hide' | 'resize' | 'reorder' | 'highlight' | 'set' | 'navigate';
   value?: string;
+  url?: string;  // For navigate action
   theme?: 'dark' | 'light';
   language?: string;
   accentColor?: string;
   preset?: 'trading' | 'minimal' | 'analysis' | 'monitoring';
+}
+
+export interface UserContext {
+  isAuthenticated: boolean;
+  accountType?: 'demo' | 'real';
+  accountId?: string;
+  currency?: string;
+  balance?: number;
+  openPositionsCount?: number;
+  totalProfit?: number;
+  totalInvested?: number;
 }
 
 export interface ChatMessage {

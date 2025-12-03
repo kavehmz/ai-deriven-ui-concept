@@ -54,16 +54,29 @@ class LayoutState(BaseModel):
     healthIssues: Optional[list[str]] = []
 
 
+class UserContext(BaseModel):
+    isAuthenticated: bool = False
+    accountType: Optional[str] = None  # demo, real
+    accountId: Optional[str] = None
+    currency: Optional[str] = None
+    balance: Optional[float] = None
+    openPositionsCount: Optional[int] = None
+    totalProfit: Optional[float] = None
+    totalInvested: Optional[float] = None
+
+
 class ChatRequest(BaseModel):
     message: str
     layoutState: LayoutState
+    userContext: Optional[UserContext] = None
     conversationHistory: Optional[list[dict]] = []
 
 
 class UIChange(BaseModel):
     component: Optional[str] = None
-    action: Optional[str] = None  # show, hide, resize, reorder, highlight, set
+    action: Optional[str] = None  # show, hide, resize, reorder, highlight, set, navigate
     value: Optional[str] = None
+    url: Optional[str] = None  # For navigate action
     theme: Optional[str] = None
     language: Optional[str] = None
     accentColor: Optional[str] = None
@@ -104,6 +117,18 @@ Global settings (use direct format):
 - {"language": "es"}  (en/es/fr/de/zh/ar/ja/pt/ru)
 - {"accentColor": "#2196F3"}
 - {"preset": "trading"}  (trading/minimal/analysis/monitoring)
+
+Navigation (open URL in new tab):
+- {"action": "navigate", "url": "https://app.deriv.com/cashier/deposit"}
+
+Common URLs to redirect users:
+- Deposit: https://app.deriv.com/cashier/deposit
+- Withdraw: https://app.deriv.com/cashier/withdrawal
+- API Token: https://app.deriv.com/account/api-token
+- Account Settings: https://app.deriv.com/account/personal-details
+- Trading History: https://app.deriv.com/reports/statement
+- Deriv Blog: https://deriv.com/blog
+- Help Center: https://deriv.com/help-centre
 
 ## IMPORTANT
 - When guiding users, use "highlight" to draw attention to components
@@ -323,9 +348,31 @@ Look at the Order Panel (highlighted) to place a trade!"""
     return ChatResponse(message=response_text, uiChanges=ui_changes)
 
 
-async def ai_mode_response(message: str, layout: LayoutState, history: list[dict]) -> ChatResponse:
+def get_user_context_description(user: Optional[UserContext]) -> str:
+    """Generate a human-readable description of the user's account."""
+    if not user or not user.isAuthenticated:
+        return "User is NOT logged in (no Deriv account connected)."
+    
+    lines = [
+        f"User IS logged in:",
+        f"- Account ID: {user.accountId}",
+        f"- Account Type: {user.accountType.upper() if user.accountType else 'Unknown'}",
+        f"- Currency: {user.currency or 'Unknown'}",
+        f"- Balance: {user.balance:.2f} {user.currency}" if user.balance is not None else "- Balance: Unknown",
+        f"- Open Positions: {user.openPositionsCount or 0}",
+    ]
+    
+    if user.openPositionsCount and user.openPositionsCount > 0:
+        lines.append(f"- Total Invested: {user.totalInvested:.2f} {user.currency}" if user.totalInvested else "")
+        lines.append(f"- Current P/L: {'+' if (user.totalProfit or 0) >= 0 else ''}{user.totalProfit:.2f} {user.currency}" if user.totalProfit is not None else "")
+    
+    return "\n".join(filter(None, lines))
+
+
+async def ai_mode_response(message: str, layout: LayoutState, user_context: Optional[UserContext], history: list[dict]) -> ChatResponse:
     """Use OpenAI for intelligent responses."""
     layout_desc = get_layout_description(layout)
+    user_desc = get_user_context_description(user_context)
     
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -336,7 +383,20 @@ async def ai_mode_response(message: str, layout: LayoutState, history: list[dict
     if FAQ_PROMPT:
         messages.append({"role": "system", "content": FAQ_PROMPT})
     
-    messages.append({"role": "system", "content": f"CURRENT LAYOUT STATE:\n{layout_desc}"})
+    # Add context about current state and user
+    context_msg = f"""## CURRENT STATE
+
+{layout_desc}
+
+## USER CONTEXT
+{user_desc}
+
+Use this information to personalize your responses. For example:
+- If user asks "how is my portfolio?" and they have open positions, tell them their P/L
+- If user is on a demo account, you can mention they're practicing with virtual funds
+- If user is not logged in and asks about their account, suggest they connect first
+"""
+    messages.append({"role": "system", "content": context_msg})
     
     # Add conversation history (last 10 messages)
     for msg in history[-10:]:
@@ -389,6 +449,7 @@ async def chat(request: ChatRequest):
         response = await ai_mode_response(
             request.message,
             request.layoutState,
+            request.userContext,
             request.conversationHistory or []
         )
     else:

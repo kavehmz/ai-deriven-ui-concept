@@ -13,7 +13,7 @@ import { ChatPanel } from './components/ChatPanel';
 import { useUIState } from './hooks/useUIState';
 import { useDerivAPI } from './hooks/useDerivAPI';
 import { useChat } from './hooks/useChat';
-import { ComponentId } from './types';
+import { ComponentId, UserContext } from './types';
 import { TranslationProvider } from './i18n/TranslationContext';
 
 function App() {
@@ -44,6 +44,23 @@ function App() {
 
   const getLayoutState = useCallback(() => layout, [layout]);
 
+  const getUserContext = useCallback((): UserContext => {
+    const openPositions = positions.filter((p) => !p.is_sold);
+    const totalProfit = openPositions.reduce((sum, p) => sum + (p.profit || 0), 0);
+    const totalInvested = openPositions.reduce((sum, p) => sum + (p.buy_price || 0), 0);
+    
+    return {
+      isAuthenticated: authorized,
+      accountType: account?.loginid?.startsWith('VRTC') ? 'demo' : 'real',
+      accountId: account?.loginid,
+      currency: account?.currency,
+      balance: account?.balance,
+      openPositionsCount: openPositions.length,
+      totalProfit,
+      totalInvested,
+    };
+  }, [authorized, account, positions]);
+
   const {
     messages,
     isLoading,
@@ -55,6 +72,7 @@ function App() {
   } = useChat({
     onUIChanges: applyUIChanges,
     getLayoutState,
+    getUserContext,
   });
 
   const handleThemeToggle = () => {

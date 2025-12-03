@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { ChatMessage, ChatResponse, LayoutState, UIChange } from '../types';
+import { ChatMessage, ChatResponse, LayoutState, UIChange, UserContext } from '../types';
 
 // Use relative URL so it works with any domain/proxy setup
 const API_URL = import.meta.env.VITE_API_URL || '/api';
@@ -7,9 +7,10 @@ const API_URL = import.meta.env.VITE_API_URL || '/api';
 interface UseChatOptions {
   onUIChanges: (changes: UIChange[]) => void;
   getLayoutState: () => LayoutState;
+  getUserContext: () => UserContext;
 }
 
-export function useChat({ onUIChanges, getLayoutState }: UseChatOptions) {
+export function useChat({ onUIChanges, getLayoutState, getUserContext }: UseChatOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
@@ -36,6 +37,7 @@ export function useChat({ onUIChanges, getLayoutState }: UseChatOptions) {
 
       try {
         const layoutState = getLayoutState();
+        const userContext = getUserContext();
         const conversationHistory = messages.map((m) => ({
           role: m.role,
           content: m.content,
@@ -49,6 +51,7 @@ export function useChat({ onUIChanges, getLayoutState }: UseChatOptions) {
           body: JSON.stringify({
             message: content.trim(),
             layoutState,
+            userContext,
             conversationHistory,
           }),
         });
@@ -71,7 +74,20 @@ export function useChat({ onUIChanges, getLayoutState }: UseChatOptions) {
         // Apply UI changes
         if (data.uiChanges && data.uiChanges.length > 0) {
           console.log('[Amy] Calling onUIChanges with:', data.uiChanges);
-          onUIChanges(data.uiChanges);
+          
+          // Handle navigation separately
+          for (const change of data.uiChanges) {
+            if (change.action === 'navigate' && change.url) {
+              console.log('[Amy] Navigating to:', change.url);
+              window.open(change.url, '_blank');
+            }
+          }
+          
+          // Apply other UI changes
+          const nonNavigateChanges = data.uiChanges.filter(c => c.action !== 'navigate');
+          if (nonNavigateChanges.length > 0) {
+            onUIChanges(nonNavigateChanges);
+          }
         } else {
           console.log('[Amy] No UI changes to apply');
         }
@@ -94,7 +110,7 @@ export function useChat({ onUIChanges, getLayoutState }: UseChatOptions) {
         setIsLoading(false);
       }
     },
-    [isLoading, messages, getLayoutState, onUIChanges, isOpen]
+    [isLoading, messages, getLayoutState, getUserContext, onUIChanges, isOpen]
   );
 
   const openChat = useCallback(() => {
