@@ -435,7 +435,7 @@ Use this information to personalize your responses. For example:
             model="gpt-5.1",
             messages=messages,
             response_format={"type": "json_object"},
-            reasoning_effort="medium", 
+            reasoning_effort="low",
             max_completion_tokens=5000,
         )
         
