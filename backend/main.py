@@ -432,11 +432,11 @@ Use this information to personalize your responses. For example:
     
     try:
         response = openai_client.chat.completions.create(
-            model="gpt-4-turbo-preview",
+            model="gpt-5.1",
             messages=messages,
             response_format={"type": "json_object"},
-            temperature=0.7,
-            max_tokens=1000,
+            reasoning_effort="medium", 
+            max_completion_tokens=5000,
         )
         
         result = json.loads(response.choices[0].message.content)

@@ -8,6 +8,7 @@ import {
   Minimize2,
   Trash2,
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { ChatMessage } from '../types';
 import { useTranslation } from '../i18n/TranslationContext';
 
@@ -146,7 +147,13 @@ export function ChatPanel({
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-sm'
               }`}
             >
-              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+              {msg.role === 'assistant' ? (
+                <div className="text-sm prose prose-sm dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-headings:my-2 prose-strong:text-inherit max-w-none">
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                </div>
+              ) : (
+                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+              )}
               <p
                 className={`text-xs mt-1 ${
                   msg.role === 'user'
