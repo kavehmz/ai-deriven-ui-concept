@@ -428,6 +428,12 @@ export function useDerivAPI() {
 
   const subscribeToPosition = useCallback(
     (contractId: number) => {
+      const subKey = `poc_${contractId}`;
+      // Avoid duplicate subscriptions
+      if (subscriptionsRef.current.has(subKey)) {
+        return;
+      }
+      subscriptionsRef.current.add(subKey);
       send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1 });
     },
     [send]
@@ -453,6 +459,9 @@ export function useDerivAPI() {
     for (const position of state.positions) {
       if (!position.is_sold) {
         subscribeToPosition(position.contract_id);
+      } else {
+        // Remove subscription tracking for sold positions
+        subscriptionsRef.current.delete(`poc_${position.contract_id}`);
       }
     }
   }, [state.positions, subscribeToPosition]);

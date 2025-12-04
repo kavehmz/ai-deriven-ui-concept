@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Header } from './components/Header';
 import { PriceChart } from './components/PriceChart';
 import { RiseFallPanel } from './components/RiseFallPanel';
@@ -44,6 +44,17 @@ function App() {
   } = useDerivAPI();
 
   const getLayoutState = useCallback(() => layout, [layout]);
+
+  // Track trading errors for Amy help
+  const [pendingError, setPendingError] = useState<string | null>(null);
+  
+  const handleTradingError = useCallback((error: string) => {
+    setPendingError(error);
+  }, []);
+
+  const clearPendingError = useCallback(() => {
+    setPendingError(null);
+  }, []);
 
   const getUserContext = useCallback((): UserContext => {
     const openPositions = positions.filter((p) => !p.is_sold);
@@ -150,6 +161,7 @@ function App() {
           currency={account?.currency || 'USD'}
           currentPrice={tick?.quote || null}
           onBuy={handleRiseFallBuy}
+          onError={handleTradingError}
         />
       ),
       higherLowerPanel: (
@@ -159,6 +171,7 @@ function App() {
           currency={account?.currency || 'USD'}
           currentPrice={tick?.quote || null}
           onBuy={handleHigherLowerBuy}
+          onError={handleTradingError}
         />
       ),
       positions: (
@@ -257,9 +270,11 @@ function App() {
           isLoading={isLoading}
           isOpen={isOpen}
           hasNewMessage={hasNewMessage}
+          pendingError={pendingError}
           onSendMessage={sendMessage}
           onToggle={toggleChat}
           onClear={clearHistory}
+          onClearPendingError={clearPendingError}
         />
       </div>
     </TranslationProvider>

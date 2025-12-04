@@ -16,9 +16,11 @@ interface ChatPanelProps {
   isLoading: boolean;
   isOpen: boolean;
   hasNewMessage: boolean;
+  pendingError?: string | null;  // Error message ready to send to Amy
   onSendMessage: (message: string) => void;
   onToggle: () => void;
   onClear: () => void;
+  onClearPendingError?: () => void;
 }
 
 export function ChatPanel({
@@ -26,14 +28,27 @@ export function ChatPanel({
   isLoading,
   isOpen,
   hasNewMessage,
+  pendingError,
   onSendMessage,
   onToggle,
   onClear,
+  onClearPendingError,
 }: ChatPanelProps) {
   const { t } = useTranslation();
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // When there's a pending error, set it as input and open chat
+  useEffect(() => {
+    if (pendingError) {
+      setInput(`I got this error while trading: "${pendingError}" - what should I do?`);
+      if (!isOpen) {
+        onToggle();
+      }
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [pendingError, isOpen, onToggle]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -52,6 +67,8 @@ export function ChatPanel({
     if (input.trim() && !isLoading) {
       onSendMessage(input.trim());
       setInput('');
+      // Clear pending error after sending
+      onClearPendingError?.();
     }
   };
 

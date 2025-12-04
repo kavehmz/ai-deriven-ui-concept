@@ -10,6 +10,7 @@ interface RiseFallPanelProps {
   currency: string;
   currentPrice: number | null;
   onBuy: (type: 'CALL' | 'PUT', stake: number, duration: number, durationUnit: DurationUnit) => Promise<void>;
+  onError?: (error: string) => void;  // Report errors to parent for Amy help
 }
 
 const DURATION_UNITS: { id: DurationUnit; label: string; options: number[] }[] = [
@@ -25,6 +26,7 @@ export function RiseFallPanel({
   currency,
   currentPrice,
   onBuy,
+  onError,
 }: RiseFallPanelProps) {
   const { t } = useTranslation();
   const [stake, setStake] = useState(10);
@@ -69,7 +71,10 @@ export function RiseFallPanel({
       setSuccess(`${type === 'CALL' ? 'Rise' : 'Fall'} contract purchased!`);
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to place order');
+      const errorMsg = err instanceof Error ? err.message : 'Failed to place order';
+      setError(errorMsg);
+      // Report to parent so user can ask Amy for help
+      onError?.(errorMsg);
     } finally {
       setLoading(null);
     }
@@ -190,9 +195,19 @@ export function RiseFallPanel({
 
         {/* Error/Success Messages */}
         {error && (
-          <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-            <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-            <span className="text-xs text-red-500">{error}</span>
+          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+              <span className="text-xs text-red-500 flex-1">{error}</span>
+            </div>
+            {onError && (
+              <button
+                onClick={() => onError(error)}
+                className="mt-2 w-full text-xs py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded transition-colors"
+              >
+                💬 Ask Amy for help
+              </button>
+            )}
           </div>
         )}
 
