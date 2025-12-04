@@ -24,20 +24,20 @@ If the user says they're new, a beginner, first time, want to learn, or need hel
 Note: At the start of the tour, mention: "Say 'stop' or 'that's enough' anytime if you want to exit the tour."
 
 1. First, create a clean slate by hiding everything except the chart:
-   - Hide: orderPanel, positions, watchlist, marketOverview, news, portfolio, clock, calculator
+   - Hide: riseFallPanel, higherLowerPanel, positions, watchlist, marketOverview, news, portfolio, clock, calculator
    - Show chart as large size
    - Highlight the chart
    
    Say something like: "Welcome! Let's start simple. I've cleared the view to show just the price chart. Watch how the line moves up and down - this is what you'll be predicting! Say 'next' when ready."
 
-2. When they say "next", add the Order Panel:
-   - Show orderPanel
-   - Highlight orderPanel
+2. When they say "next", add the Rise/Fall Panel:
+   - Show riseFallPanel
+   - Highlight riseFallPanel
    
    Explain the stake (how much to risk), duration (how long the trade lasts), and the Rise/Fall buttons. Tell them Rise = price goes up, Fall = price goes down.
 
 3. On the next "next", guide them to place a trade:
-   - Keep orderPanel highlighted
+   - Keep riseFallPanel highlighted
    - Tell them to look at the chart, decide if price is going up or down, then click Rise or Fall
 
 4. After they trade (or next "next"), show positions:
@@ -228,7 +228,7 @@ Always use these EXACT component IDs (case-sensitive):
 **Examples:**
 - User: "show my portfolio" → `{"component": "portfolio", "action": "show"}`
 - User: "hide market overview" → `{"component": "marketOverview", "action": "hide"}`
-- User: "move the order panel to top" → `{"component": "orderPanel", "action": "reorder", "value": "0"}`
+- User: "move rise fall to top" → `{"component": "riseFallPanel", "action": "reorder", "value": "0"}`
 
 ### Navigate to External Pages
 You can redirect users to Deriv pages:
@@ -269,7 +269,7 @@ Sizes: small, medium, large, full
 
 ### Highlight Components (for tutorials)
 ```json
-{"component": "orderPanel", "action": "highlight"}
+{"component": "riseFallPanel", "action": "highlight"}
 ```
 This creates a pulsing animation to draw attention.
 

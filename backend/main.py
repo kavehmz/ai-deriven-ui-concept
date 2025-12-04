@@ -118,7 +118,7 @@ Always respond with valid JSON:
 }
 
 ## UI CONTROL
-You can control components: chart, orderPanel, positions, watchlist, marketOverview, news, portfolio, clock, calculator
+You can control components: chart, riseFallPanel, higherLowerPanel, positions, watchlist, marketOverview, news, portfolio, clock, calculator
 
 Actions for components:
 - {"component": "chart", "action": "show"}
@@ -333,8 +333,8 @@ def demo_mode_response(message: str, layout: LayoutState) -> ChatResponse:
     
     # Rise/Fall explanation
     elif any(phrase in msg_lower for phrase in ["rise", "fall", "what is", "how to trade"]):
-        ui_changes.append(UIChange(component="orderPanel", action="show"))
-        ui_changes.append(UIChange(component="orderPanel", action="highlight"))
+        ui_changes.append(UIChange(component="riseFallPanel", action="show"))
+        ui_changes.append(UIChange(component="riseFallPanel", action="highlight"))
         response_text = """**Rise/Fall Trading** 📈📉
 
 • **Rise** = You predict price goes UP
@@ -432,10 +432,10 @@ Use this information to personalize your responses. For example:
     
     try:
         response = openai_client.chat.completions.create(
-            model="gpt-5.1",
+            model="gpt-5",
             messages=messages,
             response_format={"type": "json_object"},
-            reasoning_effort="medium",
+            reasoning_effort="minimal",
             max_completion_tokens=5000,
         )
         
